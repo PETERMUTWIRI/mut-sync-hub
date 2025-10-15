@@ -1,0 +1,27 @@
+# docker-compose.yml  (repo root)
+services:
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mutsync
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: analytics
+    ports: ["5432:5432"]
+    restart: unless-stopped
+
+  analytics:
+    build: ./analytics-service
+    ports: ["8000:8000"]
+    depends_on: [redis, postgres]
+    env_file: .env.local
+    environment:
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://mutsync:postgres@postgres:5432/analytics
+    volumes:
+      - ./analytics-data:/data
+    restart: unless-stopped

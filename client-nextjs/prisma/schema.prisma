@@ -1,0 +1,559 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+generator edge {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client-edge"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public"]
+}
+
+model UserProfile {
+  id                  String         @id @default(uuid())
+  userId              String         @unique
+  orgId               String
+  role                String         @default("USER")
+  status              String         @default("ACTIVE")
+  firstName           String?
+  lastName            String?
+  mfaEnabled          Boolean        @default(false)
+  mfaSecret           String?
+  mfaPendingSecret    String?
+  mfaBackupCodes      String?
+  failedLoginAttempts Int            @default(0)
+  refreshTokenHash    String?
+  resetTokenHash      String?
+  resetTokenExpiresAt DateTime?
+  featureFlags        Json?
+  lastLoginAt         DateTime?
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
+  dashboardLayout     Json?          @map("dashboard_layout")
+  layoutMode          String?        @default("beginner") @map("layout_mode") @db.VarChar(50)
+  isTechnical         Boolean?       @default(false) @map("is_technical")
+  email               String?        @unique
+  apiUsages           ApiUsage[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  payments            Payment[]
+  organization        Organization   @relation(fields: [orgId], references: [id])
+
+  @@schema("public")
+}
+
+model Organization {
+  id                     String                  @id @default(uuid())
+  name                   String
+  subdomain              String                  @unique
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
+  settings               Json?
+  status                 OrgStatus               @default(ACTIVE)
+  planId                 String?
+  reports                AnalyticsReport[]
+  analyticsSchedules     AnalyticsSchedule[]
+  apiKeys                ApiKey[]
+  apiUsages              ApiUsage[]
+  auditLogs              AuditLog[]
+  dataSources            DataSource[]
+  datasets               Dataset[]
+  notifications          Notification[]
+  plan                   Plan?                   @relation(fields: [planId], references: [id])
+  payments               Payment[]
+  paymentReconciliations PaymentReconciliation[]
+  subscription           Subscription?
+  userProfiles           UserProfile[]
+
+  @@schema("public")
+}
+
+model Payment {
+  id                 String          @id @default(cuid())
+  userProfileId      String
+  orgId              String
+  amount             Decimal         @db.Decimal(10, 2)
+  currency           String          @default("KES")
+  provider           PaymentProvider
+  status             PaymentStatus   @default(PENDING)
+  checkoutRequestId  String?         @unique
+  merchantRequestId  String?
+  mpesaReceiptNumber String?
+  phoneNumber        String?
+  errorMessage       String?
+  retryCount         Int             @default(0)
+  metadata           Json?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  callbacks          MpesaCallback[]
+  organization       Organization    @relation(fields: [orgId], references: [id])
+  userProfile        UserProfile     @relation(fields: [userProfileId], references: [id])
+
+  @@index([userProfileId])
+  @@index([orgId])
+  @@index([status])
+  @@schema("public")
+}
+
+model MpesaCallback {
+  id                 String   @id @default(cuid())
+  checkoutRequestId  String
+  merchantRequestId  String
+  resultCode         String
+  resultDesc         String
+  amount             Decimal  @db.Decimal(10, 2)
+  mpesaReceiptNumber String?
+  phoneNumber        String
+  transactionDate    DateTime
+  metadata           Json?
+  createdAt          DateTime @default(now())
+  payment            Payment  @relation(fields: [checkoutRequestId], references: [checkoutRequestId])
+
+  @@index([checkoutRequestId])
+  @@index([transactionDate])
+  @@schema("public")
+}
+
+model PaymentReconciliation {
+  id                     String       @id @default(cuid())
+  date                   DateTime     @unique
+  totalTransactions      Int
+  successfulTransactions Int
+  failedTransactions     Int
+  totalAmount            Decimal      @db.Decimal(10, 2)
+  metadata               Json?
+  createdAt              DateTime     @default(now())
+  orgId                  String
+  organization           Organization @relation(fields: [orgId], references: [id])
+
+  @@index([date])
+  @@index([orgId])
+  @@schema("public")
+}
+
+model Plan {
+  id            String         @id @default(uuid())
+  name          String         @unique
+  description   String
+  price         Float
+  currency      String         @default("USD")
+  features      Json
+  organizations Organization[]
+
+  @@schema("public")
+}
+
+model Subscription {
+  id           String       @id @default(uuid())
+  orgId        String       @unique
+  plan         String
+  status       SubStatus    @default(ACTIVE)
+  startDate    DateTime     @default(now())
+  endDate      DateTime?
+  billingInfo  Json?
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@schema("public")
+}
+
+model ApiKey {
+  id           String       @id @default(cuid())
+  key          String       @unique
+  name         String
+  status       String       @default("ACTIVE")
+  scopes       String[]
+  orgId        String
+  createdAt    DateTime     @default(now())
+  expiresAt    DateTime?
+  lastUsedAt   DateTime?
+  useCount     Int          @default(0)
+  revokedAt    DateTime?
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@schema("public")
+}
+
+model ApiUsage {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String
+  orgId        String
+  endpoint     String
+  count        Int          @default(1)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userProfile  UserProfile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, orgId])
+  @@index([createdAt])
+  @@schema("public")
+}
+
+model AuditLog {
+  id            String        @id @default(uuid())
+  userProfileId String?
+  orgId         String?
+  action        String
+  resource      String
+  details       Json?
+  createdAt     DateTime      @default(now())
+  ipAddress     String?
+  userAgent     String?
+  organization  Organization? @relation(fields: [orgId], references: [id])
+  userProfile   UserProfile?  @relation(fields: [userProfileId], references: [id])
+
+  @@schema("public")
+}
+
+model SupportTicket {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_email   String
+  org_id       String?        @db.Uuid
+  title        String
+  description  String
+  priority     Priority       @default(MEDIUM)
+  status       TicketStatus   @default(OPEN)
+  assignee     String?
+  created_at   DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at   DateTime?      @default(now()) @db.Timestamptz(6)
+  SupportReply SupportReply[]
+
+  @@index([org_id])
+  @@index([user_email, status])
+  @@schema("public")
+}
+
+model DataSource {
+  id           String           @id @default(uuid())
+  name         String
+  type         DataSourceType
+  orgId        String
+  config       Json
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  status       DataSourceStatus @default(ACTIVE)
+  lastSyncAt   DateTime?
+  createdBy    String?
+  organization Organization     @relation(fields: [orgId], references: [id])
+  dataStreams  DataStream[]
+  datasets     Dataset[]
+
+  @@schema("public")
+}
+
+model DataStream {
+  id              String       @id @default(uuid())
+  name            String
+  dataSourceId    String
+  schema          Json
+  transformations Json?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  status          StreamStatus @default(ACTIVE)
+  dataSource      DataSource   @relation(fields: [dataSourceId], references: [id])
+
+  @@schema("public")
+}
+
+model Dataset {
+  id           String       @id @default(uuid())
+  name         String
+  description  String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  orgId        String
+  dataSourceId String
+  schema       Json
+  data         Json[]
+  analyses     Analysis[]
+  dataSource   DataSource   @relation(fields: [dataSourceId], references: [id])
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@schema("public")
+}
+
+model Analysis {
+  id         String   @id @default(uuid())
+  type       String
+  datasetId  String
+  parameters Json?
+  results    Json?
+  status     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  error      String?
+  dataset    Dataset  @relation(fields: [datasetId], references: [id])
+
+  @@schema("public")
+}
+
+model IndustrySchema {
+  id          String   @id @default(uuid())
+  type        String   @unique
+  name        String
+  description String?
+  schema      Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model Notification {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title        String
+  message      String
+  type         String?      @default("INFO")
+  orgId        String
+  userId       String?
+  isOrgWide    Boolean      @default(false)
+  status       String       @default("UNREAD")
+  metadata     Json?
+  createdBy    String
+  createdAt    DateTime     @default(now())
+  readAt       DateTime?
+  deletedAt    DateTime?
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userProfile  UserProfile? @relation(fields: [userId], references: [id])
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([createdAt])
+  @@schema("public")
+}
+
+model RateLimit {
+  id           String    @id @default(uuid())
+  identifier   String
+  action       String
+  count        Int
+  expiresAt    DateTime
+  blockedUntil DateTime?
+  ipAddress    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([identifier])
+  @@index([action])
+  @@schema("public")
+}
+
+model Settings {
+  id        String   @id @default(uuid())
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@schema("public")
+}
+
+model agentmessage {
+  id        String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  threadid  String
+  role      String
+  content   String
+  createdat DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([threadid], map: "idx_agentmessage_threadid")
+  @@schema("public")
+}
+
+model ServiceStatus {
+  service      String       @id
+  status       ServiceState
+  last_updated DateTime?    @default(now()) @db.Timestamptz(6)
+
+  @@schema("public")
+}
+
+model SupportReply {
+  id            String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ticket_id     String        @db.Uuid
+  author_email  String
+  body          String
+  created_at    DateTime?     @default(now()) @db.Timestamptz(6)
+  SupportTicket SupportTicket @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([ticket_id])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model securityEvent {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  useremail String
+  action    String
+  ip        String?   @db.Inet
+  useragent String?
+  risk      String?
+  city      String?
+  country   String?
+  lat       Float?
+  lng       Float?
+  createdat DateTime? @default(now()) @db.Timestamptz(6)
+  updatedat DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([createdat], map: "securityEvent_createdAt_idx")
+  @@index([risk])
+  @@index([useremail], map: "securityEvent_userEmail_idx")
+  @@schema("public")
+}
+
+model session {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  useremail String
+  device    String?
+  os        String?
+  browser   String?
+  ip        String?   @db.Inet
+  lastseen  DateTime? @default(now()) @db.Timestamptz(6)
+  current   Boolean?  @default(false)
+  createdat DateTime? @default(now()) @db.Timestamptz(6)
+
+  @@index([lastseen], map: "session_lastSeen_idx")
+  @@index([useremail], map: "session_userEmail_idx")
+  @@schema("public")
+}
+
+model AnalyticsReport {
+  id           String       @id @default(uuid())
+  name         String
+  description  String?
+  orgId        String
+  type         String
+  config       Json
+  schedule     String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  lastRun      DateTime?
+  results      Json?
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@schema("public")
+}
+
+model AnalyticsSchedule {
+  id           String       @id @default(uuid())
+  orgId        String
+  frequency    String
+  interval     Int?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@schema("public")
+}
+
+model feature_flags {
+  key        String
+  enabled    Boolean  @default(false)
+  payload    Json?
+  org_id     String   @default("demo")
+  updated_at DateTime @default(now()) @db.Timestamp(6)
+
+  @@id([key, org_id])
+  @@index([org_id], map: "idx_flags_org")
+  @@schema("public")
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+
+  @@schema("public")
+}
+
+enum PaymentProvider {
+  MPESA
+  STRIPE
+
+  @@schema("public")
+}
+
+enum OrgStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+
+  @@schema("public")
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  INACTIVE
+  REVOKED
+
+  @@schema("public")
+}
+
+enum DataSourceType {
+  POS_SYSTEM
+  ERP
+  DATABASE
+  API
+  FILE_IMPORT
+  CUSTOM
+  WEBHOOK
+
+  @@schema("public")
+}
+
+enum DataSourceStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+  SYNCING
+
+  @@schema("public")
+}
+
+enum StreamStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+
+  @@schema("public")
+}
+
+enum SubStatus {
+  ACTIVE
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+
+  @@schema("public")
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+
+  @@schema("public")
+}
+
+enum ServiceState {
+  OPERATIONAL
+  DEGRADED
+  MAINTENANCE
+  OUTAGE
+
+  @@schema("public")
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+
+  @@schema("public")
+}

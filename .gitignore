@@ -1,0 +1,4 @@
+node_modules
+client-nextjs/googlecalendar.json
+.env.local
+analytics-service/.env.analytics

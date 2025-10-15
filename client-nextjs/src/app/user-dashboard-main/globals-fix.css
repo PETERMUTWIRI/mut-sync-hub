@@ -1,0 +1,18 @@
+/*  fix grid bleeding & gap when sidebar collapses  */
+.user-dashboard-grid {
+  width: 100% !important;
+  transition: width 0.3s ease;
+}
+
+/*  enterprise glass card  */
+.glass-card {
+  background: rgba(46, 125, 125, 0.08);
+  border: 1px solid rgba(46, 125, 125, 0.25);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 200px; /* 2 rows * rowHeight (100) */
+}

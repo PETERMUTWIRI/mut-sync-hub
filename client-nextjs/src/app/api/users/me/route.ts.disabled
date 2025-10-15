@@ -1,0 +1,2 @@
+// Disabled duplicate route. This file was created to avoid duplicate route conflicts.
+// If you want to restore the app-router handler, rename this file back to route.ts

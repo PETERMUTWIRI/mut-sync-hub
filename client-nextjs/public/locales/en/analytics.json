@@ -1,0 +1,22 @@
+{
+  "title": "Analytics",
+  "role": "Role",
+  "quotaLow": "Only {{remaining}} exports left this month.",
+  "todaySales": "Today Sales",
+  "itemsSold": "Items Sold",
+  "avgBasket": "Avg Basket",
+  "status": "Live Status",
+  "trendTitle": "7-Day Trend",
+  "aiTitle": "Ask AI Agent",
+  "aiPlaceholder": "E.g. Why did profit drop today?",
+  "ask": "Ask",
+  "scheduledReports": "Scheduled Reports",
+  "new": "New",
+  "noSchedules": "No schedules yet – create one above.",
+  "scheduleModalTitle": "Create Scheduled Report",
+  "save": "Save",
+  "cancel": "Cancel",
+  "exportCSV": "Export CSV",
+  "exportPDF": "Export PDF",
+  "usage": "Monthly Usage"
+}
