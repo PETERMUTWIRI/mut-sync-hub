@@ -3,7 +3,13 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // --- webpack fix (keep if you use onnxruntime-node) -----------------
+  // 1️⃣  turn OFF CSS minification temporarily
+  experimental: {
+    swcMinify: false,          // disable SWC minifier
+    forceSwcTransforms: true,
+  },
+
+  // 2️⃣  keep your existing stuff
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals.push({
@@ -13,7 +19,6 @@ const nextConfig = {
     return config;
   },
 
-  // --- CORS headers (Vercel → Render) ---------------------------------
   async headers() {
     return [
       {
@@ -27,13 +32,11 @@ const nextConfig = {
     ];
   },
 
-  // --- images ---------------------------------------------------------
   images: {
     remotePatterns: [{ protocol: 'https', hostname: 'utfs.io', pathname: '/f/**' }],
     domains: ['localhost'],
   },
 
-  // --- misc -----------------------------------------------------------
   compiler: { removeConsole: { exclude: ['error'] } },
   async redirects() {
     return [{ source: '/old-path', destination: '/', permanent: false }];
