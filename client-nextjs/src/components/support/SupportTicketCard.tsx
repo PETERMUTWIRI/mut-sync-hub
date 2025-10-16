@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, MessageCircle, Bot } from 'lucide-react';
-import { agentChat } from '@/app/actions/agent'; // HF agent server action
+// HF agent server action
 import { useUser } from '@stackframe/stack';
 
 interface Ticket {

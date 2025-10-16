@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pipeline } from '@xenova/transformers';
 import { google } from 'googleapis';
-import { PrismaClient } from '@prisma/edge';
+import { prisma } from '@lib/prisma';
 
 
 /* ---------- Prisma (edge) ---------- */

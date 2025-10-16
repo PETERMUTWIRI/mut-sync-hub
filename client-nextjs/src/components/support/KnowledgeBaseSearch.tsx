@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, BookOpen, ChevronRight, Clock, Sparkles } from 'lucide-react';
 import { useDebounce } from '@/lib/useDebounce';              // tiny hook below
-import { agentChat } from '@/app/actions/agent';             // your HF agent
+            // your HF agent
 
 type Article = {
   id: string;

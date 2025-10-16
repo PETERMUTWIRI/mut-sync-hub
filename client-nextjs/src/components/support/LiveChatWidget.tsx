@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, User, Bot, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { agentChat } from '@/app/actions/agent'; // your HF agent
+
 import { useUser } from '@stackframe/stack';
 
 interface Message {
