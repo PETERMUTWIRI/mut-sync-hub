@@ -1,34 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma'; // fixed alias
 import { pipeline } from '@xenova/transformers';
 import { google } from 'googleapis';
-import { prisma } from '@lib/prisma';
 
-
-/* ---------- Prisma (edge) ---------- */
-let prisma: PrismaClient;
-function getPrisma() {
-  if (!prisma) prisma = new PrismaClient();
-  return prisma;
+/* ---------- lazy LLM (HF-free) ---------- */
+let generatorPromise: Promise<any> | null = null;
+function getGenerator() {
+  if (!generatorPromise) {
+    generatorPromise = (async () => {
+      const { pipeline } = await import('@xenova/transformers');
+      return pipeline('text-generation', 'Xenova/TinyLlama-1.1B-Chat-v1.0', { quantized: true });
+    })();
+  }
+  return generatorPromise;
 }
-
-/* ---------- Google Calendar ---------- */
-const googleAuth = new google.auth.GoogleAuth({
-  keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-  scopes: ['https://www.googleapis.com/auth/calendar.events'],
-});
-const calendar = google.calendar({ version: 'v3', auth: googleAuth });
-
-/* ---------- local LLM (HF-free) ---------- */
-const generator = await pipeline(
-  'text-generation',
-  'Xenova/TinyLlama-1.1B-Chat-v1.0',
-  { quantized: true }
-);
 
 /* ---------- typed wrapper ---------- */
 async function generate(prompt: string, opts: { max_new_tokens?: number; temperature?: number } = {}): Promise<string> {
-  const res = await generator(prompt, {
+  const gen = await getGenerator();
+  const res = await gen(prompt, {
     max_new_tokens: opts.max_new_tokens ?? 40,
     temperature: opts.temperature ?? 0.8,
     do_sample: true,
@@ -41,11 +32,47 @@ async function generate(prompt: string, opts: { max_new_tokens?: number; tempera
   return unique.slice(0, 2).join('. ') + '.';
 }
 
+/* ---------- business logic ---------- */
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => ({}));
+  const { action, payload } = body;
 
+  if (!action) return NextResponse.json({ error: 'Missing action' }, { status: 400 });
 
+  try {
+    switch (action) {
+      case 'chat': {
+        const res = await agentChat(payload.message, payload.threadId ?? 'anon');
+        return NextResponse.json(res);
+      }
+      case 'requirements': {
+        const res = await gatherRequirements(payload.service, payload.threadId);
+        return NextResponse.json(res);
+      }
+      case 'book': {
+        await bookSlot(payload.date, payload.time, payload.email, payload.threadId, payload.name);
+        return NextResponse.json({ ok: true }, { status: 201 });
+      }
+      case 'explain': {
+        const text = await explainStat(payload.statName, payload.value);
+        return NextResponse.json({ explanation: text });
+      }
+      case 'analytics': {
+        const res = await analyticsQuery(payload.question, payload.threadId);
+        return NextResponse.json(res);
+      }
+      case 'hot-services':
+        return NextResponse.json({ list: HOT_SERVICES });
+      default:
+        return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+    }
+  } catch (err: any) {
+    console.error('[agent]', err);
+    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
+  }
+}
 
-
-/* ---------- tiny helpers ---------- */
+     /* ---------- tiny helpers ---------- */
 const HOT_SERVICES = [
   'AI-Agent-Ecosystems',
   'Quantum-Safe-Crypto-Stack',
@@ -148,114 +175,62 @@ Still stuck? Send us the request-id header from the error response – we’ll t
 If the question is NOT listed above, reply exactly:
 “I’ve logged your issue. A human will pick it up within 30 min. Ticket-ID will appear in this chat.”
 `;
-async function getThread(id: string) {
-  return getPrisma().agentmessage.findMany({ where: { threadid: id }, orderBy: { createdat: 'asc' } });
-}
-
-async function saveMessage(id: string, role: string, content: string) {
-  await getPrisma().agentmessage.create({ data: { threadid: id, role, content } });
-}
-
-function buildPrompt(msg: string, hist: any[]): string {
-  const recent = hist.slice(-1).map(h => ({ role: h.role, content: h.content.slice(0, 80) }));
-  const chat: any[] = [
-    {
-      role: 'system',
-      content: `You are MutSyncHub’s AI consultant. Answer ONLY using the following knowledge base. If the question is outside this list, reply exactly: “I can only help with MutSyncHub solutions.”\n${KNOWLEDGE}`,
-    },
-    ...recent,
-    { role: 'user', content: msg },
-  ];
-  const raw = generator.tokenizer.apply_chat_template(chat, { tokenize: false, add_generation_prompt: true }) as string;
-  const tokens = generator.tokenizer.encode(raw);
-  if (tokens.length > 800) {
-    const trimmed = tokens.slice(0, 800);
-    return generator.tokenizer.decode(trimmed) + '<|assistant|>';
-  }
-  return raw.split('<|assistant|>')[0] + '<|assistant|>';
-}
-
-
-/* ---------- business logic ---------- */
 async function agentChat(message: string, threadId = 'anon') {
-  /* ---------- 1.  async helpers (HOISTED) ---------- */
-  async function wantsSupport(msg: string, hist: any[]) {
-    const wants = /password|invoice|bill|charge|refund|login|401|403|sync|connector|outage|maintenance|down|broken|not working|error|can't|unable/i;
-    if (!wants.test(msg)) return null;
+  const history = await prisma.agentmessage.findMany({ where: { threadid: threadId }, orderBy: { createdat: 'asc' } });
 
-    const prompt = buildPrompt(
-      `Answer with ONE short paragraph using only the SUPPORT_ARTICLES above. If no match, say: “I’ve logged your issue. A human will pick it up within 30 min. Ticket-ID will appear in this chat.” Do not add anything else.\nUser: ${msg}`,
-      [...hist, { role: 'system', content: SUPPORT_ARTICLES }]
-    );
+  /* ---------- 1.  support intent ---------- */
+  const wantsSupport = /password|invoice|bill|charge|refund|login|401|403|sync|connector|outage|maintenance|down|broken|not working|error|can't|unable/i;
+  if (wantsSupport.test(message)) {
+    const prompt = `Answer with ONE short paragraph using only the SUPPORT_ARTICLES above. If no match, say: “I’ve logged your issue. A human will pick it up within 30 min. Ticket-ID will appear in this chat.”\nUser: ${message}`;
     const raw = await generate(prompt, { max_new_tokens: 120, temperature: 0.2 });
     const content = raw.split('assistant').pop()?.trim() ?? '';
-    await saveMessage(threadId, 'user', msg);
+    await saveMessage(threadId, 'user', message);
     await saveMessage(threadId, 'assistant', content);
     return { role: 'assistant' as const, content, requiresContact: false };
   }
 
-  async function wantsMetrics(msg: string, hist: any[]) {
-    const wants = /status|metrics|tickets|queue|response|uptime/i;
-    if (!wants.test(msg)) return null;
-
-    const data = {
-      open: 3, pending: 2, resolved: 12, escalated: 1,
-      avgResponse: 210, satisfaction: 98, liveQueue: 3,
-    };
+  /* ---------- 2.  metrics intent ---------- */
+  const wantsMetrics = /status|metrics|tickets|queue|response|uptime/i;
+  if (wantsMetrics.test(message)) {
+    const data = { open: 3, pending: 2, resolved: 12, escalated: 1, avgResponse: 210, satisfaction: 98, liveQueue: 3 };
     const content = `📊 Current support snapshot – Open: ${data.open} | Pending: ${data.pending} | Resolved today: ${data.resolved} | Avg response: ${data.avgResponse} ms | Satisfaction: ${data.satisfaction} % | Live queue: ${data.liveQueue}`;
-    await saveMessage(threadId, 'user', msg);
+    await saveMessage(threadId, 'user', message);
     await saveMessage(threadId, 'assistant', content);
     return { role: 'assistant' as const, content, requiresContact: false };
   }
-  /* ---------- 2.  main flow ---------- */
-  const history = await getThread(threadId);
 
-  /* existing intents … */
-  const wantsList = /what.*sell|what.*offer|list.*service|our solutions/i;
-  if (wantsList.test(message)) { /* … */ }
-
-  const offTopic = /(yoga|public speaking|crypto|tiktok|bitcoin|nft|onlyfans)/i;
-  if (offTopic.test(message)) { /* … */ }
-
-  const wantsDemo = /demo|meeting|consultation|call|slot/i;
-  if (wantsDemo.test(message) && !history.some(m => m.role === 'assistant' && m.content.includes('book'))) { /* … */ }
-
-  /* new support intents (helpers now in scope) */
-  const supportReply = await wantsSupport(message, history);
-  if (supportReply) return supportReply;
-
-  const metricsReply = await wantsMetrics(message, history);
-  if (metricsReply) return metricsReply;
-
-  /* fallback to general LLM */
-  const prompt  = buildPrompt(message, history);
-  const raw     = await generate(prompt);
+  /* ---------- 3.  fallback LLM ---------- */
+  const prompt = `You are MutSyncHub’s AI consultant. Answer ONLY using the following knowledge base. If the question is outside this list, reply exactly: “I can only help with MutSyncHub solutions.”\n${KNOWLEDGE}\nUser: ${message}`;
+  const raw = await generate(prompt);
   const content = raw.split('assistant').pop()?.trim() ?? '';
   const requiresContact = history.filter(h => h.role === 'assistant').length >= 4;
-
-  await saveMessage(threadId, 'user',  message);
+  await saveMessage(threadId, 'user', message);
   await saveMessage(threadId, 'assistant', content);
   return { role: 'assistant' as const, content, requiresContact };
 }
 
-
-async function gatherRequirements(service: string, threadId = 'anon') {
-  const prompt = buildPrompt(
-    `User wants "${service}". Ask ONE concise question to clarify requirements. Reply JSON only: {"question":"...","complete":boolean}`,
-    [] // empty history → still gets KNOWLEDGE via system role
-  );
+async function gatherRequirements(service: string, threadId: string) {
+  const prompt = `User wants "${service}". Ask ONE concise question to clarify requirements. Reply JSON only: {"question":"...","complete":boolean}`;
   const raw = await generate(prompt, { max_new_tokens: 200 });
   const text = raw.split('assistant').pop()?.trim() ?? '';
-  try { return JSON.parse(text); } catch { return { question: 'Could you tell me more about your goals?', complete: false }; }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { question: 'Could you tell me more about your goals?', complete: false };
+  }
 }
 
-async function bookSlot(
-  date: string,
-  time: string,
-  email: string,
-  threadId = 'anon',
-  name = 'Valued Client'   // <-- new
-) {
+async function bookSlot(date: string, time: string, email: string, threadId: string, name: string) {
+  // OPTIONAL Google Calendar – skips silently if credentials missing
+  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) return;
+
+  const { google } = await import('googleapis');
+  const auth = new google.auth.GoogleAuth({
+    keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    scopes: ['https://www.googleapis.com/auth/calendar.events'],
+  });
+  const calendar = google.calendar({ version: 'v3', auth });
+
   const event = {
     summary: 'MutSyncHub Consultation',
     description: `Thread: ${threadId}`,
@@ -263,79 +238,23 @@ async function bookSlot(
     end: { dateTime: `${date}T${String(Number(time.split(':')[0]) + 1).padStart(2, '0')}:00:00`, timeZone: 'Africa/Nairobi' },
   };
   await calendar.events.insert({ calendarId: 'primary', requestBody: event });
-  return { ok: true };
 }
 
-
-
-
 async function explainStat(statName: string, value: number) {
-  const prompt = buildPrompt(`Explain this metric in one short sentence for a non-technical user: "${statName}" = ${value}.`, []);
+  const prompt = `Explain this metric in one short sentence for a non-technical user: "${statName}" = ${value}.`;
   const raw = await generate(prompt, { max_new_tokens: 60 });
   return raw.split('assistant').pop()?.trim() ?? '';
 }
 
-async function analyticsQuery(question: string, threadId = 'anon') {
+async function analyticsQuery(question: string, threadId: string) {
   const data = { activeUsers: 142, revenue: 133700, labels: ['Mon', 'Tue', 'Wed'], values: [40, 55, 45] };
-  const visual = (() => {
-    if (/trend|over time/i.test(question)) return { type: 'line', data };
-    if (/distribution|share/i.test(question)) return { type: 'pie', data };
-    return { type: 'bar', data };
-  })();
+  const visual = /trend|over time/i.test(question) ? { type: 'line', data } :
+                 /distribution|share/i.test(question) ? { type: 'pie', data } :
+                 { type: 'bar', data };
   const answer = await agentChat(`Answer this business question using the data: ${JSON.stringify(data)}. Question: ${question}`, threadId);
   return { answer, visual };
 }
 
-/* ---------- API router ---------- */
-export async function POST(req: NextRequest) {
-  let body: any = {};
-  try {
-    const text = await req.text();          // read raw body
-    body = text ? JSON.parse(text) : {};    // safe parse
-  } catch (e) {
-    console.error('Bad JSON body:', e);
-    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
-  }
-
-  const { action, payload } = body;
-  if (!action) {
-    return NextResponse.json({ error: 'Missing action' }, { status: 400 });
-  }
-
-  try {
-    switch (action) {
-      case 'chat': {
-        const { message, threadId } = payload;
-        const res = await agentChat(message, threadId);
-        return NextResponse.json(res, { status: 200 });
-      }
-      case 'requirements': {
-        const { service, threadId } = payload;
-        const res = await gatherRequirements(service, threadId);
-        return NextResponse.json(res, { status:  200 });
-      }
-      case 'book': {
-        const { date, time, email, threadId, name } = payload;
-        await bookSlot(date, time, email, threadId, name); // name added
-        return NextResponse.json({ ok: true }, { status: 201 });
-      };
-      case 'explain': {
-        const { statName, value } = payload;
-        const text = await explainStat(statName, value);
-        return NextResponse.json({ explanation: text }, { status: 200 });
-      }
-      case 'analytics': {
-        const { question, threadId } = payload;
-        const res = await analyticsQuery(question, threadId);
-        return NextResponse.json(res, { status: 200 });
-      }
-      case 'hot-services':
-        return NextResponse.json({ list: HOT_SERVICES }, { status: 200 });
-      default:
-        return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
-    }
-  } catch (err: any) {
-    console.error(err);
-    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
-  }
+async function saveMessage(threadId: string, role: string, content: string) {
+  await prisma.agentmessage.create({ data: { threadid: threadId, role, content } });
 }
