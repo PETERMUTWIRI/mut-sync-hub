@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';
 import FormData from 'form-data';
-import fetch from 'node-fetch';
+
 
 const ANALYTICS_URL = process.env.ANALYTICS_INTERNAL_URL!;
 const ANALYTICS_API_KEY = process.env.ANALYTICS_API_KEY!;
