@@ -4,7 +4,6 @@ export const dynamic = 'force-dynamic';
 // /app/api/datasources/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';
-import FormData from 'form-data';
 
 
 const ANALYTICS_URL = process.env.ANALYTICS_INTERNAL_URL!;
@@ -30,13 +29,11 @@ export async function POST(req: NextRequest) {
     const outgoingForm = new FormData();
     for (const [k, v] of incomingForm.entries()) {
       if (v instanceof File) {
-        const arr = await v.arrayBuffer();
-        outgoingForm.append(k, Buffer.from(arr), { filename: v.name });
+        outgoingForm.append(k, v);
       } else {
         outgoingForm.append(k, v);
       }
     }
-
     const engineRes = await fetch(url.toString(), {
       method: 'POST',
       headers: { 'x-api-key': ANALYTICS_API_KEY },
