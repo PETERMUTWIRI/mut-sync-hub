@@ -14,6 +14,7 @@ module.exports = {
     },
   },
   plugins: [
+    require('./postcss-debug-length.js'),
     require('@tailwindcss/forms'),
     require('@tailwindcss/typography'),
     require('tailwindcss-animate'),
