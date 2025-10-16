@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "overrides": {
-    "simple-swizzle": "^0.2.4",
-    "postcss": "8.4.31"
+    "simple-swizzle": "^0.2.4"
+  
   },
   "scripts": {
     "dev": "next dev",
