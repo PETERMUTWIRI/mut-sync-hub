@@ -1,8 +1,10 @@
-// client-nextjs/postcss.config.js
-module.exports = {
-  plugins: [
-    'tailwindcss',
-    'autoprefixer',
-    require('./postcss-kill-length-final.js'), // ➜  strips bare “length”
-  ],
-};
+export default {
+  plugins: {
+    'postcss-flexbugs-fixes': {},
+    'postcss-preset-env': {
+      autoprefixer: { flexbox: 'no-2009' },
+      stage: 3,
+      features: { 'custom-properties': false },
+    },
+  },
+}
