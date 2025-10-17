@@ -17,6 +17,6 @@ module.exports = {
     require('@tailwindcss/forms'),
     require('@tailwindcss/typography'),
     require('tailwindcss-animate'),
-    require('./postcss-strip-length.js'),
+    require('./postcss-kill-length.js'), 
   ],
 }
