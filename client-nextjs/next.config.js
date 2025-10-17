@@ -5,7 +5,6 @@ const nextConfig = {
 
   // 1️⃣  turn OFF CSS minification temporarily
   experimental: {
-    swcMinify: false,          // disable SWC minifier
     forceSwcTransforms: true,
   },
 
