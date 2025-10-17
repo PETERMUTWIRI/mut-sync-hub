@@ -14,6 +14,7 @@ module.exports = {
     },
   },
   plugins: [
+     require('./postcss-debug-bad-css.js'), 
     require('@tailwindcss/forms'),
     require('@tailwindcss/typography'),
     require('tailwindcss-animate'),
