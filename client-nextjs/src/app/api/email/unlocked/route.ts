@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend'; // or nodemailer
 import { prisma } from '@/lib/prisma';
-import { jsonToPDF } from '@/lib/buildReportPDF';
+import { buildReportPDF } from '@/lib/buildReportPDF';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -12,7 +12,16 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'No user' }, { status: 404 });
 
   // generate welcome PDF
-  const pdf = await jsonToPDF([{ name: 'Unlimited', value: 9999 }], 'Welcome to Newton Analytics');
+  const report = {
+    type: 'Welcome',
+    lastRun: new Date(),
+    results: {
+      'Unlimited Exports': 'true',
+      'Unlimited Scheduled Reports': 'true',
+      'AI Insights': 'true',
+    },
+  };
+  const pdf = await buildReportPDF(report);
 
   await resend.emails.send({
     from: 'Newton <newton@mutsynhub.com>',

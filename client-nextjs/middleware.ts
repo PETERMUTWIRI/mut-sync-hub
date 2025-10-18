@@ -1,5 +1,5 @@
 // middleware.ts
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(

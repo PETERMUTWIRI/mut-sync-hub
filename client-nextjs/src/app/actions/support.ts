@@ -53,3 +53,8 @@ export async function addAdminReply({
   });
   revalidatePath('/support');
 }
+
+export async function agentChat(message: string, user_email?: string) {
+  // TODO: Implement actual AI agent chat
+  return { content: 'This is a placeholder response from the AI agent.' };
+}
