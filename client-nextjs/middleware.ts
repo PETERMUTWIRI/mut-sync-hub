@@ -7,22 +7,38 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 );
 
+/* ---- tiny Edge-safe base64 decode ---- */
+function base64Decode(str: string) {
+  return typeof Buffer !== 'undefined'
+    ? Buffer.from(str, 'base64').toString()
+    : atob(str); // Edge runtime
+}
+
 export async function middleware(req: NextRequest) {
-  // protect /app/*
   if (!req.nextUrl.pathname.startsWith('/app')) return NextResponse.next();
 
   const stackJWT = req.cookies.get('stack-session')?.value;
   if (!stackJWT) return NextResponse.redirect(new URL('/sign-in', req.url));
 
-  const email = JSON.parse(atob(stackJWT.split('.')[1])).email;
-  const { data } = await supabase
-    .from('mfa_factors')
-    .select('verified')
-    .eq('email', email)
-    .single();
+  try {
+    const payload = JSON.parse(base64Decode(stackJWT.split('.')[1]));
+    const email = payload.email;
 
-  if (!data?.verified) {
-    return NextResponse.redirect(new URL('/mfa/setup', req.url));
+    const { data } = await supabase
+      .from('mfa_factors')
+      .select('verified')
+      .eq('email', email)
+      .single();
+
+    if (!data?.verified) {
+      return NextResponse.redirect(new URL('/mfa/setup', req.url));
+    }
+  } catch {
+    return NextResponse.redirect(new URL('/sign-in', req.url));
   }
   return NextResponse.next();
 }
+
+export const config = {
+  matcher: ['/app/:path*'],
+};
