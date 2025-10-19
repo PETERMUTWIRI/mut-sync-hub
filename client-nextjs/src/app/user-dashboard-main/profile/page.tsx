@@ -134,7 +134,7 @@ export default function ProfilePage() {
         ]);
         setProfile(prof);
         setName(prof.firstName || '');
-        setEmail(prof.email || stackUser.primaryEmail || '');
+  setEmail(prof.email || stackUser?.primaryEmail || '');
         setAvatarPreview(prof.avatarUrl || '');
         setMfaEnabled(prof.mfaEnabled || false);
         setAudit(logs);
@@ -145,7 +145,7 @@ export default function ProfilePage() {
         setLoading(false);
       }
     })();
-  }, [isOnboard, stackUser.primaryEmail]);
+  }, [isOnboard, stackUser?.primaryEmail]);
 
   /* ---- avatar ---- */
   const onAvatarPick = (e: React.ChangeEvent<HTMLInputElement>) => {

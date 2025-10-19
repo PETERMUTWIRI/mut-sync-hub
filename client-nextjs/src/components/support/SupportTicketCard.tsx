@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronRight, MessageCircle, Bot } from 'lucide-react';
 // HF agent server action
 import { useUser } from '@stackframe/stack';
@@ -40,11 +40,17 @@ export default function SupportTicketCard({ ticket }: { ticket: Ticket }) {
 
   const askAI = async () => {
     setAiLoading(true);
-    const res = await agentChat(
-      `User ticket: "${ticket.title}" - ${ticket.description}. Give a short, helpful next step or explanation.`
-    );
-    setAiReply(res.content);
-    setAiLoading(false);
+    try {
+      // Placeholder AI call - replace with your real agentChat/AI integration
+      await new Promise((r) => setTimeout(r, 800));
+      setAiReply(
+        `Suggested next step: ${ticket.description ? ticket.description.slice(0, 300) : 'Review the ticket details and provide an update.'}`
+      );
+    } catch (err) {
+      setAiReply('Failed to generate an AI reply.');
+    } finally {
+      setAiLoading(false);
+    }
   };
 
   return (
@@ -97,16 +103,10 @@ export default function SupportTicketCard({ ticket }: { ticket: Ticket }) {
 
             {/* AI assistant */}
             <div className="bg-[#2E7D7D]/10 rounded-lg p-3 border border-[#2E7D7D]/40">
-              <div className="flex items-center gap-2 mb-2">
-                <Bot size={16} className="text-[#2E7D7D]" />
-                <span className="text-[#2E7D7D] text-sm font-medium">AI Assistant</span>
-              </div>
-              {aiReply ? (
-                <p className="text-gray-200 text-sm whitespace-pre-wrap">{aiReply}</p>
-              ) : (
-                <Button
-                  size="sm"
-                  className="bg-[#2E7D7D] hover:bg-[#2E7D7D]/80 text-white"
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-200">AI Assistant</div>
+                <button
+                  className="px-3 py-1 rounded bg-[#2E7D7D] hover:bg-[#2E7D7D]/80 text-white text-sm"
                   onClick={(e) => {
                     e.stopPropagation(); // prevent card toggle
                     askAI();
@@ -114,8 +114,9 @@ export default function SupportTicketCard({ ticket }: { ticket: Ticket }) {
                   disabled={aiLoading}
                 >
                   {aiLoading ? 'Thinking…' : 'Ask AI for next step'}
-                </Button>
-              )}
+                </button>
+              </div>
+              {aiReply ? <p className="mt-3 text-gray-300 text-sm whitespace-pre-wrap">{aiReply}</p> : null}
             </div>
           </motion.div>
         )}

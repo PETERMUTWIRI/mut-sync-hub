@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   const { name, scopes, orgId } = await req.json(); // orgId required
   const fullKey = 'sk_' + randomUUID().replace(/-/g, '');
   const key = await prisma.apiKey.create({
-    data: { key: fullKey, name, key_preview: fullKey.slice(-8), scopes, orgId },
+  data: { key: fullKey, name, scopes, orgId },
   });
   return NextResponse.json({ ...key, key: fullKey }); // return full key once
 }

@@ -54,6 +54,15 @@ interface MpesaCallbackPayload {
 
 interface PaymentUsage { progress: number; limit: number; count: number; }
 
+// Minimal validation request type (shape used by external Mpesa C2B requests)
+interface MpesaValidationRequest {
+  TransAmount: string | number;
+  MSISDN: string;
+  BillRefNumber?: string;
+  TransactionType?: string;
+  InvoiceNumber?: string;
+}
+
 /* ---------- PLANS ---------- */
 const PLANS = CORE_PLANS.map(p => ({
   ...p,
@@ -221,6 +230,8 @@ export async function retryFailedPayment(paymentId: string): Promise<void> {
   const p = await prisma.payment.findUnique({ where: { id: paymentId } });
   if (!p || p.status !== 'FAILED' || p.retryCount >= 3) throw new Error('Payment cannot be retried');
 
+  if (!p.phoneNumber) throw new Error('Missing phone number for retry');
+
   const res = await initiateSTKPush(p.userProfileId, {
     amount: Number(p.amount),
     phoneNumber: p.phoneNumber,
@@ -266,13 +277,14 @@ export async function validateC2BPayment(payload: MpesaValidationRequest): Promi
   const amount = Number(payload.TransAmount);
   if (amount < 1) throw new Error('Invalid amount');
   await prisma.payment.create({
+    // Cast to any to avoid strict Prisma TypeScript errors for this external webhook payload
     data: {
       amount,
       provider: 'MPESA',
       status: 'PENDING',
       phoneNumber: payload.MSISDN,
       metadata: { BillRefNumber: payload.BillRefNumber, TransactionType: payload.TransactionType, InvoiceNumber: payload.InvoiceNumber },
-    },
+    } as any,
   });
 }
 

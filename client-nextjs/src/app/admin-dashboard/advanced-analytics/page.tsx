@@ -58,8 +58,8 @@ const AdvancedAnalytics: React.FC = () => {
   // Fetch chart data
   useEffect(() => {
     if (!user) return;
-    let query = '';
-    const params = [];
+  let query = '';
+  const params: string[] = [];
     if (plan && plan !== 'All') params.push(`plan=${encodeURIComponent(plan)}`);
     if (dateFrom) params.push(`dateFrom=${encodeURIComponent(dateFrom)}`);
     if (dateTo) params.push(`dateTo=${encodeURIComponent(dateTo)}`);
@@ -73,8 +73,8 @@ const AdvancedAnalytics: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     setStats(s => ({ ...s, loading: true }));
-    let query = '';
-    const params = [];
+  let query = '';
+  const params: string[] = [];
     if (plan && plan !== 'All') params.push(`plan=${encodeURIComponent(plan)}`);
     if (dateFrom) params.push(`dateFrom=${encodeURIComponent(dateFrom)}`);
     if (dateTo) params.push(`dateTo=${encodeURIComponent(dateTo)}`);

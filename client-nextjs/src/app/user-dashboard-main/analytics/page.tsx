@@ -417,7 +417,7 @@ const analyticResults = qc.getQueryData(['analytics-results', orgId, activeAnaly
             <p className="text-sm text-gray-400">{ctx?.firstName} • {ctx?.plan?.name} plan</p>
           </div>
           <div className="flex items-center gap-3">
-            <LiveIndicator live={!!live?.online} />
+            <LiveIndicator live={!!(live as any)?.online} />
             <HistoryDrawer />
             <Bell className="w-5 h-5 text-teal-400 cursor-pointer" onClick={() => toast('Notifications coming soon')} />
           </div>
@@ -497,7 +497,7 @@ const analyticResults = qc.getQueryData(['analytics-results', orgId, activeAnaly
           <KPICard icon={<TrendingUp />} title="Daily Sales" value={`KES ${analyticResults?.daily_sales ?? 0}`} color="#10b981" />
           <KPICard icon={<BarChart3 />} title="Items Sold" value={analyticResults?.daily_qty ?? 0} color="#10b981" />
           <KPICard icon={<PieChartIcon />} title="Avg Basket" value={`KES ${analyticResults?.avg_basket ?? 0}`} color="#10b981" />
-          <KPICard icon={<Zap />} title="Status" value={live?.online ? 'Online' : 'Offline'} color={live?.online ? '#10b981' : '#ef4444'} pulse={live?.online} />
+          <KPICard icon={<Zap />} title="Status" value={(live as any)?.online ? 'Online' : 'Offline'} color={(live as any)?.online ? '#10b981' : '#ef4444'} pulse={(live as any)?.online} />
         </div>
 
         {/* Drill breadcrumb */}

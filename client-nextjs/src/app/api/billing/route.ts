@@ -27,8 +27,9 @@ export async function GET(req: NextRequest) {
 
     /*  3.  shape exactly what BillingCard expects  */
     const last = org.payments[0];
-    const nextDate = org.planExpiresAt ? new Date(org.planExpiresAt).toLocaleDateString() : 'Unlimited';
-    const cardLast4 = org.cardLast4 || '—';
+  // planExpiresAt and cardLast4 are not present on the Prisma Organization model by default
+  const nextDate = (org as any).planExpiresAt ? new Date((org as any).planExpiresAt).toLocaleDateString() : 'Unlimited';
+  const cardLast4 = (org as any).cardLast4 || '—';
 
     const usage = {
       limit: (org.plan?.features as any[])?.find((f: any) => f.name === 'Payment-Limit')?.limit ?? 0,
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       lastInvoice: last
-        ? `KSH ${Number(last.amount / 100).toLocaleString()} • ${last.mpesaReceiptNumber || '—'}`
+        ? `KSH ${Number(Number(last.amount as any) / 100).toLocaleString()} • ${last.mpesaReceiptNumber || '—'}`
         : 'No payments yet',
       nextPayment: nextDate,
       paymentMethod: cardLast4 ? `•••• ${cardLast4}` : 'M-Pesa',

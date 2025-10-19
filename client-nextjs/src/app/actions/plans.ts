@@ -73,7 +73,7 @@ export async function getPlans() {
   return PLANS;
 }
 
-export async function getPlanUuid(planId: string): string {
+export async function getPlanUuid(planId: string): Promise<string> {
   return PLAN_UUIDS[planId as keyof typeof PLAN_UUIDS] ?? planId;
 }
 

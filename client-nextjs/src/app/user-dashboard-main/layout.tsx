@@ -21,7 +21,11 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-screen w-full bg-[#1E2A44] text-white font-inter">
-        <DashboardSidebar onToggle={setSidebarOpen} />
+        <DashboardSidebar
+          isSidebarOpen={sidebarOpen}
+          displayName={user.displayName || (user as any).email || 'User'}
+          handleLogout={() => { window.location.href = '/handler/sign-out'; }}
+        />
 
         <main className={`flex-1 flex flex-col transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
           <ProfileCompletionBanner />

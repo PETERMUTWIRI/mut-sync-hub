@@ -2,7 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { useOrgProfile } from './useOrgProfile'; // returns { orgId, planId, role }
 
 export function useFlag(flagKey: string) {
-  const { orgId, planId, role } = useOrgProfile();
+  const { data: profile } = useOrgProfile();
+  const orgId = (profile as any)?.orgId;
+  const planId = (profile as any)?.planId;
+  const role = (profile as any)?.role;
+
   const { data } = useQuery({
     queryKey: ['flags', orgId, flagKey],
     queryFn: async () => {
@@ -14,7 +18,7 @@ export function useFlag(flagKey: string) {
       const flags: { key: string; enabled: boolean }[] = await res.json();
       return flags.find((f) => f.key === flagKey)?.enabled ?? false;
     },
-    enabled: !!orgId,
+  enabled: !!orgId,
     staleTime: 1000 * 60,
   });
   return data ?? false;

@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, BookOpen, ChevronRight, Clock, Sparkles } from 'lucide-react';
 import { useDebounce } from '@/lib/useDebounce';              // tiny hook below
+import { agentRequest } from '@/lib/agentClient';
             // your HF agent
 
 type Article = {
@@ -78,7 +79,7 @@ export default function KnowledgeBaseSearch() {
   useEffect(() => {
     if (!debounced) { setAiSuggestions([]); return; }
     setAiLoading(true);
-    agentChat(`Suggest the 3 most relevant knowledge-base articles for: "${debounced}". Reply JSON only: [{"id":"KB-xxx","title":"...","description":"..."}]`)
+    agentRequest('chat', { message: `Suggest the 3 most relevant knowledge-base articles for: "${debounced}". Reply JSON only: [{"id":"KB-xxx","title":"...","description":"..."}]`, threadId: 'kb' })
       .then((res) => {
         try {
           const parsed: Article[] = JSON.parse(res.content);

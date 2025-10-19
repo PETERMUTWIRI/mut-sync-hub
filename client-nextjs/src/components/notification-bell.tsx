@@ -16,7 +16,7 @@ export function NotificationBell() {
       .then((arr) => setCount(arr.filter((n: any) => n.status === "UNREAD").length));
 
     // live updates
-    const socket = io(`${process.env.NEXT_PUBLIC_ORIGIN}/analytics`);
+    const socket: any = io(`${process.env.NEXT_PUBLIC_ORIGIN}/analytics`);
     socket.on("notification:new", (n: any) => {
       if (n.status === "UNREAD") setCount((c) => c + 1);
     });

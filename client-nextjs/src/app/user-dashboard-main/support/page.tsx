@@ -69,7 +69,8 @@ export default function SupportPage() {
   const router = useRouter();
 
   /* ---------- live data ---------- */
-  const { tickets, isLoading } = useSupportTickets(user.primaryEmail);
+  const userEmail = (user as any)?.primaryEmail || '';
+  const { tickets, isLoading } = useSupportTickets(userEmail);
   const serviceStat = useServiceStatus();
 
   /* ---------- local state ---------- */
@@ -118,7 +119,7 @@ export default function SupportPage() {
         title: ticketForm.title,
         description: ticketForm.description,
         priority: ticketForm.priority,
-        user_email: user.primaryEmail,
+        user_email: (user as any)?.primaryEmail || '',
       });
       setTicketSuccess('Ticket created successfully'); toast.success('Ticket created');
       setTicketForm({ title: '', description: '', priority: 'medium' });

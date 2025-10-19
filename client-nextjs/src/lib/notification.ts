@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { DataGateway } from "@/lib/websocket";
 
 export async function createNotification(orgId: string, data: {
-      createdBy: orgId,
+  createdBy: string;
   title: string;
   message: string;
   type?: "INFO" | "SUCCESS" | "WARNING" | "ERROR";
@@ -11,10 +11,12 @@ export async function createNotification(orgId: string, data: {
 }) {
   const notif = await prisma.notification.create({
     data: {
-      createdBy: orgId,
-      ...data,
+      title: data.title,
+      message: data.message,
       type: data.type ?? "INFO",
       isOrgWide: data.isOrgWide ?? false,
+      userId: data.userId,
+      createdBy: data.createdBy || orgId,
       orgId,
       status: "UNREAD",
     },

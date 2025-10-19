@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, User, Bot, MoreVertical } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { agentRequest } from '@/lib/agentClient';
 
 import { useUser } from '@stackframe/stack';
 
@@ -58,7 +59,7 @@ export default function LiveChatWidget({ isOpen, onClose }: LiveChatWidgetProps)
     setTyping(true);
 
     try {
-      const res = await agentChat(input);
+      const res = await agentRequest('chat', { message: input, threadId: 'live' });
       const agentMsg: Message = {
         id: crypto.randomUUID(),
         text: res.content,

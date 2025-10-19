@@ -44,9 +44,10 @@ export async function POST(req: NextRequest) {
   // we trust the caller (our own server-action) – no extra auth
   const body = await req.json();
   const { orgId, title, message, type = 'INFO', isOrgWide = true, userId } = body;
+  const user = await ensureAndFetchUserProfile();
 
   const notif = await prisma.notification.create({
-    data: {
+    data: ({
       orgId,
       title,
       message,
@@ -54,7 +55,8 @@ export async function POST(req: NextRequest) {
       isOrgWide,
       userId,
       status: 'UNREAD',
-    },
+      createdBy: user.profileId || 'system',
+    } as any),
   });
 
   // real-time push (your existing DataGateway)

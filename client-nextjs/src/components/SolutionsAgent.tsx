@@ -9,7 +9,7 @@ import {
 } from 'react-icons/hi2';
 
 type Props = {
-  context?: 'support' | 'solutions'; // ← or just string if you want
+  context?: string;
 };
 export default function SolutionsAgent({ context = 'anon' }: Props) {
   const [thread, setThread] = useState<{role:'user'|'assistant';content:string}[]>([]);
@@ -32,7 +32,7 @@ export default function SolutionsAgent({ context = 'anon' }: Props) {
   async function triggerWelcome() {
     setLoading(true);
     const res = await agentRequest('requirements', { service: 'unknown', threadId: 'support' });
-    setThread([{ role: 'assistant', content: res.question }]);
+    setThread([{ role: 'assistant', content: res.content }]);
     setLoading(false);
   }
 
@@ -44,8 +44,8 @@ export default function SolutionsAgent({ context = 'anon' }: Props) {
     setLoading(true);
 
     try {
-      const res = await agentRequest('chat', { message: input, threadId: 'support' });
-      setThread((t) => [...t, { role: 'assistant', content: res.content }]);
+  const res = await agentRequest('chat', { message: input, threadId: 'support' });
+  setThread((t) => [...t, { role: 'assistant', content: res.content }]);
       if (res.requiresContact) setCalendarOffer(true);
     } catch (e: any) {
       setThread((t) => [...t, { role: 'assistant', content: 'Sorry – ' + e.message }]);

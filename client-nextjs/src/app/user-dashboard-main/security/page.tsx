@@ -62,7 +62,7 @@ type ApiKey = {
 export default function SecurityPage() {
   const user = useUser({ or: 'redirect' });
   const router = useRouter();
-  const orgId = user?.orgId;
+  const orgId = (user as any)?.orgId;
 
   /* ----- live data ----- */
   const [events, setEvents] = useState<SecurityEvent[]>([]);
@@ -163,7 +163,7 @@ export default function SecurityPage() {
   };
 
   const handleRevokeApiKey = async (id: string) => {
-    await revokeApiKey(id);
+    await revokeApiKey(orgId!, id);
     toast.success('Key revoked');
     const keys = await fetch('/api/security/api-keys').then((r) => r.json());
     setApiKeys(keys);

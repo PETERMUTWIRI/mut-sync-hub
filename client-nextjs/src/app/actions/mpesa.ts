@@ -107,7 +107,8 @@ export async function handleCallback(form: FormData) {
   revalidatePath('/billing');
 }
 
-export async function getPaymentUsage(orgId: string): Promise<Usage> {
+export async function getPaymentUsage(orgId?: string): Promise<Usage> {
+  if (!orgId) return { progress: 0, limit: 0, count: 0 };
   const org = await prisma.organization.findUnique({ where: { id: orgId }, include: { plan: true } });
   const planId = org?.planId || getPlanUuid('free');
   const plan = PLANS.find(p => getPlanUuid(p.id) === planId)!;

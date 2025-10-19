@@ -45,11 +45,11 @@ export async function addAdminReply({
   author_email: string;
 }) {
   await prisma.supportReply.create({
-    data: { ticket_id, body, authorEmail: author_email },
+    data: { ticket_id, body, author_email: author_email },
   });
   await prisma.supportTicket.update({
     where: { id: ticket_id },
-    data: { updatedAt: new Date() },
+    data: { updated_at: new Date() },
   });
   revalidatePath('/support');
 }

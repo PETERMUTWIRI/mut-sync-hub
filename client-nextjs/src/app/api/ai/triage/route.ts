@@ -35,7 +35,7 @@ Ticket body: ${description}`;
   await prisma.supportReply.create({
     data: {
       ticket_id,
-      authorEmail: 'ai-triage@mutsynhub.com',
+      author_email: 'ai-triage@mutsynhub.com',
       body: parsed.reply,
     },
   });

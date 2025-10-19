@@ -24,11 +24,11 @@ export default function NotificationsCard() {
 
   useEffect(() => {
     fetch('/api/notifications').then((r) => r.json()).then(setNotifications);
-    const socket = io(`${process.env.NEXT_PUBLIC_ORIGIN}/analytics`);
-    socket.on('notification:new', (n: Notification) => setNotifications((prev) => [n, ...prev]));
-    socket.on('notification:read', (id: string) => setNotifications((prev) => prev.map((p) => (p.id === id ? { ...p, status: 'READ' } : p))));
-    socket.on('notification:readAll', () => setNotifications((prev) => prev.map((p) => ({ ...p, status: 'READ' }))));
-    return () => socket.disconnect();
+  const socket: any = io(`${process.env.NEXT_PUBLIC_ORIGIN}/analytics`);
+  socket.on('notification:new', (n: Notification) => setNotifications((prev) => [n, ...prev]));
+  socket.on('notification:read', (id: string) => setNotifications((prev) => prev.map((p) => (p.id === id ? { ...p, status: 'READ' } : p))));
+  socket.on('notification:readAll', () => setNotifications((prev) => prev.map((p) => ({ ...p, status: 'READ' }))));
+  return () => { socket.disconnect(); };
   }, []);
 
   const unreadCount = notifications.filter((n) => n.status === 'UNREAD').length;
@@ -56,7 +56,7 @@ export default function NotificationsCard() {
             <AlertDescription className="font-inter text-xs">
               {getAlertMessage()}
               {latest.actionUrl && (
-                <Button variant="link" className="text-[#2E7D7D] pl-1 text-xs" onClick={() => router.push(latest.actionUrl)}>
+                <Button variant="link" className="text-[#2E7D7D] pl-1 text-xs" onClick={() => router.push(latest.actionUrl as string)}>
                   →
                 </Button>
               )}

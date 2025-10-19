@@ -40,7 +40,7 @@ export default function HeroSection() {
     handleResize();
 
     const generateData = (count: number) => {
-      const data = [];
+      const data: { x: number; revenue: number; volume: number }[] = [];
       let lastRevenue = 500;
       let lastVolume = 200;
 

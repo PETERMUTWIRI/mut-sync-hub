@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
   const { data } = await supabase
     .from('mfa_factors')
-    .select('secret')
+    .select('secret, verified')
     .eq('email', email)
     .single();
 
