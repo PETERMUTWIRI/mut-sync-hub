@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 const hf = new InferenceClient(process.env.HF_TOKEN!);
 
 export async function POST(req: NextRequest) {
-  const { ticketId, title, description } = await req.json();
+  const { ticket_id, title, description } = await req.json();
 
   const prompt = `You are a support triage assistant.
 Given the ticket below, return **only** valid JSON with keys:
@@ -28,13 +28,13 @@ Ticket body: ${description}`;
   }
 
   await prisma.supportTicket.update({
-    where: { id: ticketId },
+    where: { id: ticket_id },
     data: { priority: parsed.priority, assignee: parsed.assignee },
   });
 
   await prisma.supportReply.create({
     data: {
-      ticketId,
+      ticket_id,
       authorEmail: 'ai-triage@mutsynhub.com',
       body: parsed.reply,
     },

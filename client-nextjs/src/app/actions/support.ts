@@ -19,7 +19,7 @@ export async function createSupportTicket({
       title,
       description,
       priority: priority.toUpperCase() as any,
-      userEmail: user_email,
+      user_email: user_email,
       status: 'OPEN',
     },
   });
@@ -28,7 +28,7 @@ export async function createSupportTicket({
   fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/ai/triage`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ticketId: ticket.id, title, description }),
+    body: JSON.stringify({ ticket_id: ticket.id, title, description }),
   });
 
   revalidatePath('/support');
@@ -36,19 +36,19 @@ export async function createSupportTicket({
 }
 
 export async function addAdminReply({
-  ticketId,
+  ticket_id,
   body,
   author_email,
 }: {
-  ticketId: string;
+  ticket_id: string;
   body: string;
   author_email: string;
 }) {
   await prisma.supportReply.create({
-    data: { ticketId, body, authorEmail: author_email },
+    data: { ticket_id, body, authorEmail: author_email },
   });
   await prisma.supportTicket.update({
-    where: { id: ticketId },
+    where: { id: ticket_id },
     data: { updatedAt: new Date() },
   });
   revalidatePath('/support');

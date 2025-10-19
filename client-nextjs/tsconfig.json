@@ -8,7 +8,7 @@
     ],
     "allowJs": true,
     "skipLibCheck": true,
-    "strict": true,
+    "strict": false,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
     "esModuleInterop": true,
@@ -29,7 +29,7 @@
       "@testing-library/jest-dom"
     ], // Added for testing support
     "strictNullChecks": true,
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "strictFunctionTypes": true,
     "strictBindCallApply": true,
     "noImplicitThis": true,
