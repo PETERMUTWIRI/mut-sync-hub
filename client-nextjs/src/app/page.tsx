@@ -1,4 +1,8 @@
-// src/app/page.tsx
-export { default } from '@/app/(main)/page';
+// app/page.tsx
+import HomePage from './(main)/page';
+
+export default function Home() {
+  return <HomePage />;
+}
 
 export const dynamic = 'force-dynamic';
