@@ -4,7 +4,13 @@ import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@stackframe/stack';
 import { toast } from 'react-hot-toast';
-import { ensureAndFetchUserProfile } from '@/app/api/get-user-role/action';
+// We no longer call the server helper directly from client code.
+// Fetch a secure API route instead which returns the profile/org data.
+const fetchOrgProfile = async () => {
+  const res = await fetch('/api/org-profile');
+  if (!res.ok) throw new Error('Failed to fetch org profile');
+  return res.json();
+};
 
 export const useRoleRedirect = () => {
   const user = useUser();
@@ -41,9 +47,10 @@ export const useRoleRedirect = () => {
           localStorage.removeItem('userSession');
         }
 
-        console.log('useRoleRedirect: Fetching role for user', user.id);
-        const { role, orgId, isTechnical } = await ensureAndFetchUserProfile();
-        const fetchedRole = role.toLowerCase() || 'user';
+  console.log('useRoleRedirect: Fetching role for user', user.id);
+  const payload = await fetchOrgProfile();
+  const { role = 'USER', orgId, isTechnical = false } = payload || {};
+  const fetchedRole = (role || 'USER').toLowerCase();
         console.log('useRoleRedirect: Role fetched', fetchedRole);
         localStorage.setItem('userSession', JSON.stringify({
           role: fetchedRole,

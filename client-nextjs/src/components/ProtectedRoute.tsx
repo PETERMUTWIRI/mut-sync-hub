@@ -5,7 +5,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@stackframe/stack';
 import { motion } from 'framer-motion';
-import { ensureAndFetchUserProfile } from '@/app/api/get-user-role/action';
+// Client-side helper: call the secure API route instead of importing server helper
+async function fetchOrgProfileClient() {
+  const res = await fetch('/api/org-profile');
+  if (!res.ok) throw new Error('Failed to fetch org profile');
+  return res.json();
+}
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -34,12 +39,12 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
           localStorage.removeItem('userSession');
         }
 
-        const { role, orgId } = await ensureAndFetchUserProfile();
-        const fetchedRole = role.toLowerCase() || 'user';
+        const payload = await fetchOrgProfileClient();
+        const fetchedRole = (payload?.role || 'USER').toLowerCase();
         setRole(fetchedRole);
         localStorage.setItem('userSession', JSON.stringify({
           role: fetchedRole,
-          orgId,
+          orgId: payload?.orgId,
           expiresAt: Date.now() + 60 * 60 * 1000,
         }));
       } catch (err) {

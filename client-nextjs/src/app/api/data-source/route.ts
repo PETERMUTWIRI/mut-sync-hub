@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 // /app/api/datasources/route.ts  (top of file)
 export const runtime = 'edge';        // optional but explicit
-export const dynamic = 'force-dynamic';
+
 // /app/api/datasources/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';

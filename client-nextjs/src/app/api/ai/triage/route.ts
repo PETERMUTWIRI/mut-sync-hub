@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { InferenceClient } from '@huggingface/inference';
 import { prisma } from '@/lib/prisma';

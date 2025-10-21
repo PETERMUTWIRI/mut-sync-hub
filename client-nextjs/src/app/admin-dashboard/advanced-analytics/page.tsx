@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import { getUserGrowth, getRevenueTrend, getActiveUsersTrend, getChurnTrend } from '@/lib/user';
 import AnalyticsLineChart from '@/components/admin/AnalyticsLineChart';
 import api from '@/lib/api';
@@ -43,7 +42,8 @@ const initialStats: Stats = {
 
 
 const AdvancedAnalytics: React.FC = () => {
-  const { user } = useAuth();
+  const [profile, setProfile] = useState<any | null>(null);
+  const user = profile; // keep variable name used later
   const [stats, setStats] = useState<Stats>(initialStats);
   // Chart state
   const [userGrowth, setUserGrowth] = useState<ChartPoint[]>([]);
@@ -58,8 +58,8 @@ const AdvancedAnalytics: React.FC = () => {
   // Fetch chart data
   useEffect(() => {
     if (!user) return;
-  let query = '';
-  const params: string[] = [];
+    let query = '';
+    const params: string[] = [];
     if (plan && plan !== 'All') params.push(`plan=${encodeURIComponent(plan)}`);
     if (dateFrom) params.push(`dateFrom=${encodeURIComponent(dateFrom)}`);
     if (dateTo) params.push(`dateTo=${encodeURIComponent(dateTo)}`);
@@ -73,8 +73,8 @@ const AdvancedAnalytics: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     setStats(s => ({ ...s, loading: true }));
-  let query = '';
-  const params: string[] = [];
+    let query = '';
+    const params: string[] = [];
     if (plan && plan !== 'All') params.push(`plan=${encodeURIComponent(plan)}`);
     if (dateFrom) params.push(`dateFrom=${encodeURIComponent(dateFrom)}`);
     if (dateTo) params.push(`dateTo=${encodeURIComponent(dateTo)}`);
@@ -103,6 +103,22 @@ const AdvancedAnalytics: React.FC = () => {
       });
     }).catch(() => setStats(s => ({ ...s, loading: false })));
   }, [user, plan, dateFrom, dateTo]);
+
+  // Fetch profile once on mount
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/org-profile', { credentials: 'include' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (mounted) setProfile(json);
+      } catch (e) {
+        // ignore, default behavior will handle missing user
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   const statCards = [
     {

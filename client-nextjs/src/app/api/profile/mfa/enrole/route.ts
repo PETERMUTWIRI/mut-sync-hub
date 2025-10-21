@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 // src/app/api/mfa/enrol/route.ts
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';

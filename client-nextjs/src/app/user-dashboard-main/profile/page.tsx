@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { Toaster, toast } from 'react-hot-toast';
-import { ensureAndFetchUserProfile } from '@/app/api/get-user-role/action';
 import { strength } from '@/lib/password-strength';
 import { CameraIcon, EyeIcon, EyeSlashIcon, DocumentDuplicateIcon, PrinterIcon } from '@heroicons/react/24/outline';
 

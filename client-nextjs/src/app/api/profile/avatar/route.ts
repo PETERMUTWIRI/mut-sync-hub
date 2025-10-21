@@ -1,5 +1,5 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest } from "next/server";
-import { ensureAndFetchUserProfile } from "@/app/api/get-user-role/action";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {

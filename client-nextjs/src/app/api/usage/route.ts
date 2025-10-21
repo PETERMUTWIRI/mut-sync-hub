@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAnalyticsUsage } from '@/lib/analytics-usage';
 import { stackServerApp } from '@/lib/stack';

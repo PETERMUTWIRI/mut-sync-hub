@@ -1,4 +1,5 @@
 
+export const dynamic = 'force-dynamic';
 // src/app/api/org-profile/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
