@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { stackServerApp } from '@/lib/stack';
 import { getAnalyticsUsage } from '@/lib/analytics-usage'; // your existing helper
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     /*  1.  get user via Stack (no old action)  */

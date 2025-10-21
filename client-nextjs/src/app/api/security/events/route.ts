@@ -19,6 +19,9 @@ try {
 }
 
 // ---------- GET ----------
+
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   console.log('🔍 /api/security/events hit – query:', req.nextUrl.searchParams.toString());
 

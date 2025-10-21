@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/lib/stack';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic'
+
 const ANALYTICS_URL = process.env.NEXT_PUBLIC_ANALYTICS_URL!;
 
 export async function GET(req: NextRequest) {

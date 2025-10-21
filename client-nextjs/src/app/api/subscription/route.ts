@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stackServerApp } from '@/lib/stack';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     const user = await stackServerApp.getUser({ or: 'throw', tokenStore: 'nextjs-cookie' });

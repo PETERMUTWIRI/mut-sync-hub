@@ -3,16 +3,11 @@
 const nextConfig = {
   reactStrictMode: true,
 
-  // 1️⃣  turn OFF CSS minification temporarily
-  experimental: {
-    forceSwcTransforms: true,
-  },
-
-  // 2️⃣  keep your existing stuff
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals.push({
         'onnxruntime-node': 'commonjs onnxruntime-node',
+        sharp: 'commonjs sharp',
       });
     }
     return config;

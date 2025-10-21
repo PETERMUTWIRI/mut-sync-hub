@@ -3,6 +3,8 @@ import { getAnalyticsUsage } from '@/lib/analytics-usage';
 import { stackServerApp } from '@/lib/stack';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     const user = await stackServerApp.getUser({ or: 'throw', tokenStore: 'nextjs-cookie' });
