@@ -3,6 +3,8 @@
 > next dev
 
   ▲ Next.js 14.2.33
-  - Local:        http://localhost:3001
+  - Local:        http://localhost:3002
+  - Experiments (use with caution):
+    · forceSwcTransforms
 
  ✓ Starting...

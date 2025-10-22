@@ -3,6 +3,10 @@
 const nextConfig = {
   reactStrictMode: true,
 
+  experimental: {
+    forceSwcTransforms: true,
+  },
+
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals.push({
