@@ -5,4 +5,4 @@ export default function Home() {
   return <HomePage />;
 }
 
-export const dynamic = 'force-dynamic';
+// export const dynamic = 'force-dynamic';
