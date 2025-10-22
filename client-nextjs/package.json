@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "postinstall": "pnpm rebuild sharp && prisma generate"
   },
   "dependencies": {
