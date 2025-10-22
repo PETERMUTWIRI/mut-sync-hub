@@ -3,7 +3,7 @@
     { "src": "client-nextjs/next.config.js", "use": "@vercel/next" }
   ],
   "outputDirectory": "client-nextjs/.next",
-  "framework": "nextjs",
-  "buildCommand": "pnpm approve-builds && pnpm run build",
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD ."
+  "framework": "nextjs"
+  
 }
+  
