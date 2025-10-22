@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic';
-
+export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from "next/server";
 import { getOrgProfileInternal } from "@/lib/org-profile";
 import { prisma } from "@/lib/prisma";

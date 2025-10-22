@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 // import { NextRequest, NextResponse } from 'next/server';
 // import { Resend } from 'resend'; // or nodemailer
 // import { prisma } from '@/lib/prisma';

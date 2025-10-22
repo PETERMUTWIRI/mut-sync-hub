@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 // src/app/api/mfa/verify/route.ts
 import { NextResponse } from 'next/server';
 import * as speakeasy from 'speakeasy';

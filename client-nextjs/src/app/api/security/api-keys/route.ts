@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 // src/app/api/security/api-keys/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';

@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 // src/app/api/flags/[key]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';

@@ -1,14 +1,12 @@
-// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone', // ✅ ensures Vercel deploys API + SSR correctly
 
-  // 1️⃣  turn OFF CSS minification temporarily
   experimental: {
     forceSwcTransforms: true,
   },
 
-  // 2️⃣  keep your existing stuff
   webpack: (config, { isServer }) => {
     if (isServer) {
       config.externals.push({
@@ -23,7 +21,12 @@ const nextConfig = {
       {
         source: '/:path*',
         headers: [
-          { key: 'Access-Control-Allow-Origin', value: process.env.VERCEL_URL || 'https://mut-sync-hub-petermutwiris-projects.vercel.app' },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value:
+              process.env.VERCEL_URL ||
+              'https://mut-sync-hub-petermutwiris-projects.vercel.app',
+          },
           { key: 'Access-Control-Allow-Methods', value: 'GET, POST, PUT, DELETE, OPTIONS' },
           { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
         ],
@@ -37,6 +40,7 @@ const nextConfig = {
   },
 
   compiler: { removeConsole: { exclude: ['error'] } },
+
   async redirects() {
     return [{ source: '/old-path', destination: '/', permanent: false }];
   },
