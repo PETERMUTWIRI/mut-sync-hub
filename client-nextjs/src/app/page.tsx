@@ -1,8 +1,5 @@
-// app/page.tsx
-import HomePage from './(main)/page';
+import { redirect } from 'next/navigation';
 
-export default function Home() {
-  return <HomePage />;
+export default function HomeRedirect() {
+  redirect('/main'); // redirects to the (main) folder’s page
 }
-
-// export const dynamic = 'force-dynamic';

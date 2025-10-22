@@ -15,7 +15,7 @@ import  SolutionsOverview  from '@/components/home/SolutionsOverview';
 import  EnterpriseTrust from '@/components/home/EnterpriseTrust';
 import  IndustryImpact  from '@/components/home/IndustryImpact';
 
-export default function HomePage() {
+export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#1E2A44]">
       <main className="w-full">
