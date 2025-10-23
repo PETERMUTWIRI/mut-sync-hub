@@ -54,14 +54,16 @@ type Ticket = {
   priority: 'critical' | 'high' | 'medium' | 'low';
   createdAt: string;
   assignee: string | null;
-  replies: { authorEmail: string; body: string; createdAt: string }[];
+  SupportReply: { authorEmail: string; body: string; createdAt: string }[];
 };
 
-type SystemStatus = {
-  service: string;
-  status: 'operational' | 'degraded' | 'maintenance' | 'outage';
-  lastUpdated: string;
-};
+
+
+ type ServiceStatus = {
+   service: string;
+   status: 'operational' | 'degraded' | 'maintenance' | 'outage';
+   lastUpdated: string; // 
+  };
 
 /* ---------- page ---------- */
 export default function SupportPage() {
@@ -130,6 +132,8 @@ export default function SupportPage() {
       setTimeout(() => setTicketError(''), 3000);
     }
   };
+ 
+  
 
   /* ---------- render (full original UI) ---------- */
   return (
@@ -198,7 +202,7 @@ export default function SupportPage() {
                   {isLoading ? (
                     <div className="text-gray-400">Loading status…</div>
                   ) : (
-                    serviceStat.map((s, i) => <SystemStatusCard key={i} {...s} aria-label={`${s.service} status: ${s.status}`} />)
+                    serviceStat.map((s: ServiceStatus, i: number) => <SystemStatusCard key={i} {...s} aria-label={`${s.service} status: ${s.status}`} />)
                   )}
                 </div>
                 <div className="mt-6 pt-4 border-t border-gray-600 text-xs text-gray-500">
@@ -235,7 +239,7 @@ export default function SupportPage() {
                       ) : tickets.length === 0 ? (
                         <div className="p-12 text-center"><p className="text-gray-500">No support tickets yet.</p><Button className="mt-4 text-[#2E7D7D] hover:text-[#2E7D7D]/80 font-medium" onClick={() => setShowTicketModal(true)} aria-label="Create your first ticket">Create your first ticket</Button></div>
                       ) : (
-                        tickets.map((t) => <SupportTicketCard key={t.id} ticket={t} aria-label={`Ticket: ${t.title}`} />)
+                        tickets.map((t: Ticket) => (<SupportTicketCard key={t.id} ticket={t} aria-label={`Ticket: ${t.title}`} />))
                       )}
                     </div>
                   </div>
@@ -253,7 +257,7 @@ export default function SupportPage() {
                     <div className="border-t border-gray-600 pt-4">
                       <h3 className="font-medium text-white mb-3">Component Status</h3>
                       <div className="space-y-3">
-                        {serviceStat.map((s, i) => (
+                        {serviceStat.map((s: ServiceStatus, i: number) => (
                           <div key={i} className="flex justify-between items-center">
                             <div className="flex items-center gap-2">
                               {s.status === 'operational' && <CheckCircle2 size={16} className="text-green-500" />}

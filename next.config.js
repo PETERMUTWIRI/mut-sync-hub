@@ -1,10 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone', // ✅ ensures Vercel deploys API + SSR correctly
+  output: 'standalone',
 
   experimental: {
     forceSwcTransforms: true,
+    // ignore edge-agent at bundle / trace time
+    outputFileTracingExcludes: {
+      '/': ['./edge-agent/**/*'],
+    },
   },
 
   webpack: (config, { isServer }) => {
