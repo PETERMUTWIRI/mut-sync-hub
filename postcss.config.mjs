@@ -6,5 +6,7 @@ export default {
       stage: 3,
       features: { 'custom-properties': false },
     },
+    tailwindcss: {},   // ← add this line
+    autoprefixer: {},  // ← add this line
   },
-}
+};
