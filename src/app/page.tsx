@@ -10,6 +10,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { ClientChrome as Chrome } from '@/components/Chrome';
 
 import  HeroSection  from '@/components/home/HeroSection';
 import  AboutSection from '@/components/home/AboutSection';
@@ -22,8 +23,9 @@ import  IndustryImpact  from '@/components/home/IndustryImpact';
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#1E2A44]">
-      <main className="w-full">
+    <Chrome>
+      <div className="min-h-screen bg-gray-50 dark:bg-[#1E2A44]">
+        <main className="w-full">
         <Suspense fallback={<div>Loading page...</div>}>
           <div className="bg-gradient-to-br from-blue-900 via-blue-800 to-purple-500 min-h-screen">
             <HeroSection />
@@ -70,7 +72,8 @@ export default function Home() {
             <CTASection />
           </div>
         </Suspense>
-      </main>
-    </div>
+        </main>
+      </div>
+    </Chrome>
   );
 }
