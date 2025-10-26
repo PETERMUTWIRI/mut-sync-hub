@@ -33,11 +33,7 @@
   background: #000011;
   border-radius: 8px;
 } 
-img, svg, video, canvas {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
+
 /* Minimal global styles */ 
 body {
   margin: 0;
