@@ -1,7 +1,6 @@
-@import "tailwindcss";
-@import "tailwindcss/theme" layer(theme);   /* optional – theme tokens */
-@import "tailwindcss/preflight" layer(base); /* <-- brings back the blue underline + all normalisations */
-
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);   /* ← brings back blue underlines + all normalisations */
+@import "tailwindcss/utilities.css" layer(utilities);
 /* Inter font */
 @font-face {
   font-family: 'Inter';
