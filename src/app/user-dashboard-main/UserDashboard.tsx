@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import dynamic from 'next/dynamic';
 import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
+// import 'react-resizable/css/styles.css';
 import { useOrgProfile } from '@/hooks/useOrgProfile';
 import { toast } from 'react-hot-toast';
 
@@ -76,7 +76,7 @@ const DOCK_CARDS: {
   key: string;
   name: string;
   plan: PlanTier;
-  icon: JSX.Element;
+  icon: React.ReactNode; 
 }[] = [
   { key: 'notifications', name: 'Notifications', plan: 'free', icon: <HiBell /> },
   { key: 'query', name: 'Query Analytics', plan: 'free', icon: <HiChip /> },
