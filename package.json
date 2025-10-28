@@ -11,7 +11,7 @@
    "start": "next start",
    "lint": "next lint",
    "test": "jest",
-   "postinstall": "node patch-value-parser.js && pnpm rebuild sharp && prisma generate",
+   "postinstall": "pnpm rebuild sharp && prisma generate",
    "tw": "tailwindcss -i ./src/app/global.css -o ./out.css --minify --watch",
    "build:tw": "tailwindcss -i ./src/app/global.css -o ./out.css --minify"
   },
