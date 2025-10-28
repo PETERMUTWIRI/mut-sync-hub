@@ -1,9 +1,7 @@
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 /* Inter font */
-  @font-face {
+@font-face {
   font-family: 'Inter';
   src: url('/fonts/Inter-Regular.woff2') format('woff2');
   font-weight: 400;
@@ -23,9 +21,9 @@
   font-weight: 700;
   font-style: normal;
   font-display: swap;
-} 
+}
 
- /* WebGL Globe styling for Login Geography card */
+/* WebGL Globe styling for Login Geography card */
 .webgl-globe {
   width: 100%;
   height: 256px;
