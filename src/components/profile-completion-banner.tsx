@@ -7,8 +7,9 @@ const fetcher = (url: string) =>
   fetch(url, { credentials: 'include' }).then((r) => r.json());
 
 export function ProfileCompletionBanner() {
-  const { data: profile } = useSWR('/api/profile', fetcher);
-  if (!profile || profile.firstName) return null;
+  const { data: profile, error } = useSWR('/api/profile', fetcher);
+
+  if (error || !profile || profile?.firstName) return null;
 
   return (
     <div className="w-full px-6 py-3 bg-gradient-to-r from-teal-500 to-cyan-400 text-white flex items-center justify-between text-sm md:text-base">

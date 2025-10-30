@@ -26,13 +26,14 @@ interface SidebarProps {
 }
 
 const navLinks = [
-  { to: "/dashboard", label: "Dashboard", icon: <Home size={18} /> },
-  { to: "/billing", label: "Billing", icon: <CreditCard size={18} /> },
-  { to: "/analytics", label: "Analytics", icon: <BarChart2 size={18} /> },
-  { to: "/calendar", label: "Calendar", icon: <Calendar size={18} /> },
-  { to: "/notifications", label: "Notifications", icon: <Bell size={18} /> },
-  { to: "/support", label: "Support", icon: <HelpCircle size={18} /> },
-  { to: "/settings", label: "Security", icon: <Settings size={18} /> },
+  { to: "/user-dashboard-main",               label: "Dashboard",     icon: <Home size={18} /> },
+  { to: "/user-dashboard-main/analytics",     label: "Analytics",     icon: <BarChart2 size={18} /> },
+  { to: "/user-dashboard-main/billing",       label: "Billing",       icon: <CreditCard size={18} /> },
+  { to: "/user-dashboard-main/data-souce",      label: "Datasource",      icon: <Calendar size={18} /> },
+  { to: "/user-dashboard-main/notifications", label: "Notifications", icon: <Bell size={18} /> },
+  { to: "/user-dashboard-main/profile",       label: "Profile",       icon: <User size={18} /> },
+  { to: "/user-dashboard-main/support",       label: "Support",       icon: <HelpCircle size={18} /> },
+  { to: "/user-dashboard-main/security",      label: "Security",      icon: <Settings size={18} /> },
 ];
 
 export default function Sidebar({
