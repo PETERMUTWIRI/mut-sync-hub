@@ -128,8 +128,10 @@ export default function UserDashboard() {
   });
 
   const handleLayoutChange = (newLayout: any) => {
-    const validated = validateLayout(newLayout, layoutMode);
-    saveLayoutMutation.mutate(validated);
+   if (!Array.isArray(newLayout)) return;          // ← guard 1
+   const validated = validateLayout(newLayout, layoutMode);
+   if (!Array.isArray(validated)) return;         // ← guard 2
+   saveLayoutMutation.mutate(validated);
   };
 
   const planOrder: Record<PlanTier, number> = { free: 0, pro: 1, enterprise: 2 };
@@ -243,7 +245,7 @@ export default function UserDashboard() {
 
           <ResponsiveGridLayout
             className="layout"
-            layouts={{ lg: activeKeys.map((k, i) => ({ i: k, x: (i * 2) % 12, y: Math.floor(i / 6) * 2, w: 2, h: 2 })) }}
+            layouts={{ lg: activeKeys.length? activeKeys.map((k, i) => ({ i: k, x: (i * 2) % 12, y: Math.floor(i / 6) * 2, w: 2, h: 2 })): [] }}
             breakpoints={{ lg: 1200, md: 996, sm: 768 }}
             cols={{ lg: 12, md: 10, sm: 6 }}
             rowHeight={100}
