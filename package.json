@@ -6,14 +6,16 @@
     "simple-swizzle": "^0.2.4",
     "cssnano-simple": "npm:lightningcss@^1.30.2"
   },
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build --webpack",
-    "start": "next start",
-    "lint": "next lint",
-    "test": "jest",
-    "postinstall": "pnpm rebuild sharp && prisma generate"
+ "scripts": {
+   "dev": "next dev",
+   "build": "next build",
+   "start": "next start",
+   "lint": "next lint",
+   "test": "jest",
+   "postinstall": "pnpm rebuild sharp && prisma generate"
   },
+
+
   "dependencies": {
     "@aws-sdk/client-s3": "^3.918.0",
     "@emailjs/browser": "^4.4.1",
