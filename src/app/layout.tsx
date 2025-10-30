@@ -2,7 +2,7 @@ import { StackProvider, StackTheme } from '@stackframe/stack';
 import { stackClientApp } from '@/lib/stack.client';
 
 import { Toaster } from 'react-hot-toast';
-import '@/app/tailwind.css';
+import '@/app/tailwind-output.css';
 
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
