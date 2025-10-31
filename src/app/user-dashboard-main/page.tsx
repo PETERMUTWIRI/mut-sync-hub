@@ -275,8 +275,7 @@ export default function UserDashboard() {
           <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/20 to-transparent opacity-0 group-hover:opacity-100 transition"/>
           <div className="text-center">
             <div className="text-gray-400 text-xs mb-1">CURRENT PLAN</div>
-            <div className="text-3xl font-extrabold bg-clip-text text-transparent
-                            bg-gradient-to-r from-cyan-400 to-blue-500">{orgProfile?.plan?.title || 'Free'}</div>
+            <div className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500"/>
             <div className="text-cyan-400 text-xs mt-2 cursor-pointer"
                  onClick={() => setShowPlans(true)}>Upgrade →</div>
           </div>

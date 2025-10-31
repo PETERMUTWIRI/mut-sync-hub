@@ -40,3 +40,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .googlecalendar.json
+src/app/tailwind-output.css
