@@ -246,11 +246,15 @@ export default function UserDashboard() {
           <svg className="w-full h-full" viewBox="0 0 100 100">
             <circle cx="50" cy="50" r="42" stroke="#ffffff1a" strokeWidth="8" fill="none"/>
             <circle
-              cx="50" cy="50" r="42" stroke="url(#burn)"
-              strokeWidth="8" fill="none" strokeDasharray="264"
-              strokeDashoffset={264 - (usagePercent / 100) * 264}
-              strokeLinecap="round" className="rotate-[-90deg] origin-center
-              transition-all duration-1000 ease-out"/>
+               cx="50" cy="50" r="42"
+               stroke="url(#burn)"
+               strokeWidth="8"
+               fill="none"
+               strokeDasharray="264"
+               strokeDashoffset={264 - (usagePercent / 100) * 264}
+               strokeLinecap="round"
+               className="rotate-90 origin-center transition-all duration-1000 ease-out"
+            />
             <defs>
               <linearGradient id="burn" x1="0" y1="0" x2="1" y2="1">
                 <stop stopColor="#22d3ee"/><stop offset="1" stopColor="#f59e0b"/>
