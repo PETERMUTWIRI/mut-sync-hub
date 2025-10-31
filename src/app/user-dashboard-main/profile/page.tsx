@@ -97,9 +97,9 @@ export default function ProfilePage() {
   const stackUser    = useUser();
 
   /* ---- state ---- */
-  const [profile, setProfile]       = useState<Profile | null>(null);
-  const [audit, setAudit]           = useState<Audit[]>([]);
-  const [loading, setLoading]       = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [audit, setAudit] = useState<Audit[]>([]);
+  const [loading, setLoading] = useState(true);
 
   /* profile fields */
   const [name, setName]             = useState('');
@@ -341,7 +341,7 @@ export default function ProfilePage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="rounded-2xl bg-gradient-to-br from-[#1E2A44] to-[#2E7D7D]/10 border border-[#2E7D7D]/30 p-6 shadow-2xl">
           <h2 className="text-xl font-semibold text-teal-300 mb-4">Recent Activity</h2>
           <div className="space-y-3 max-h-80 overflow-auto pr-2">
-            {audit.map(log => (
+            {Array.isArray(audit) && audit.map(log => (
               <div key={log.id} className="flex items-start gap-4">
                 <div className="w-2 h-2 rounded-full bg-teal-400 mt-2" />
                 <div className="flex-1">

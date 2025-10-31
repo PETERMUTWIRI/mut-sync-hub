@@ -1,7 +1,9 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { Tooltip } from 'react-tooltip';
 import {
   Home,
   CreditCard,
@@ -12,101 +14,117 @@ import {
   Settings,
   LogOut,
   User,
-} from "lucide-react";
-import { Tooltip } from "react-tooltip";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { useState } from "react";
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 
 interface SidebarProps {
-  isSidebarOpen: boolean;
   displayName: string;
   avatarSrc?: string;
   handleLogout: () => void;
 }
 
 const navLinks = [
-  { to: "/user-dashboard-main",               label: "Dashboard",     icon: <Home size={18} /> },
-  { to: "/user-dashboard-main/analytics",     label: "Analytics",     icon: <BarChart2 size={18} /> },
-  { to: "/user-dashboard-main/billing",       label: "Billing",       icon: <CreditCard size={18} /> },
-  { to: "/user-dashboard-main/data-souce",      label: "Datasource",      icon: <Calendar size={18} /> },
-  { to: "/user-dashboard-main/notifications", label: "Notifications", icon: <Bell size={18} /> },
-  { to: "/user-dashboard-main/profile",       label: "Profile",       icon: <User size={18} /> },
-  { to: "/user-dashboard-main/support",       label: "Support",       icon: <HelpCircle size={18} /> },
-  { to: "/user-dashboard-main/security",      label: "Security",      icon: <Settings size={18} /> },
+  { href: '/user-dashboard-main', label: 'Dashboard', icon: <Home size={20} /> },
+  { href: '/user-dashboard-main/analytics', label: 'Analytics', icon: <BarChart2 size={20} /> },
+  { href: '/user-dashboard-main/billing', label: 'Billing', icon: <CreditCard size={20} /> },
+  { href: '/user-dashboard-main/calendar', label: 'Calendar', icon: <Calendar size={20} /> },
+  { href: '/user-dashboard-main/notifications', label: 'Notifications', icon: <Bell size={20} /> },
+  { href: '/user-dashboard-main/profile', label: 'Profile', icon: <User size={20} /> },
+  { href: '/user-dashboard-main/support', label: 'Support', icon: <HelpCircle size={20} /> },
+  { href: '/user-dashboard-main/security', label: 'Security', icon: <Settings size={20} /> },
 ];
 
-export default function Sidebar({
-  isSidebarOpen,
-  displayName,
-  avatarSrc,
-  handleLogout,
-}: SidebarProps) {
+export default function DashboardSidebar({ displayName, avatarSrc, handleLogout }: SidebarProps) {
   const pathname = usePathname();
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const NavItem = ({ href, label, icon }: typeof navLinks[0]) => (
+    <Link
+      href={href}
+      className={`flex items-center gap-4 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 transform hover:scale-[1.02] hover:shadow-lg
+        ${pathname === href ? 'bg-gradient-to-r from-teal-500 to-cyan-400 text-white shadow-md'
+                            : 'text-gray-300 hover:bg-white/10 hover:text-white'}`}
+      aria-label={label}
+      data-tooltip-id={collapsed ? href : undefined}
+      data-tooltip-content={collapsed ? label : undefined}
+    >
+      <span className="text-xl">{icon}</span>
+      {!collapsed && <span>{label}</span>}
+    </Link>
+  );
 
   return (
     <aside
-      className={`flex flex-col h-screen bg-[#1E1E2F] text-gray-300 transition-all duration-300 ${
-        isSidebarOpen ? "w-60" : "w-16"
+      className={`shrink-0 flex flex-col h-screen bg-[#1E1E2F] text-gray-300 transition-all duration-300 ${
+        collapsed ? 'w-20' : 'w-64'
       }`}
     >
-      {/* Navigation links */}
-      <nav className="flex-1 overflow-y-auto px-2 py-4 flex flex-col gap-1">
-        {navLinks.map((link, idx) => (
-          <div key={link.to} className="relative group">
-            <Link
-              href={link.to}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-200 text-sm font-medium ${
-                pathname === link.to
-                  ? "bg-[#2E7D7D] text-white"
-                  : "hover:bg-[#2E7D7D]/50 hover:text-white"
-              }`}
-              aria-label={link.label}
-              data-tooltip-id={`nav-${idx}`}
-              data-tooltip-content={isSidebarOpen ? "" : link.label}
-            >
-              <span className="text-lg">{link.icon}</span>
-              {isSidebarOpen && <span>{link.label}</span>}
-            </Link>
-            {!isSidebarOpen && <Tooltip id={`nav-${idx}`} />}
+      {/* ---- Top toggle ---- */}
+      <div className="p-4 border-b border-white/10">
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className="w-10 h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+        </button>
+      </div>
+
+      {/* ---- Navigation ---- */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 flex flex-col gap-3">
+        {navLinks.map((link) => (
+          <div key={link.href} className="relative group">
+            <NavItem {...link} />
+            {collapsed && <Tooltip id={link.href} />}
           </div>
         ))}
-
-        {/* Profile + Logout right under Security */}
-        <div
-          className="flex items-center justify-between gap-2 px-3 py-2 mt-2 rounded-lg bg-[#2E7D7D]/10 hover:bg-[#2E7D7D]/20 transition-colors"
-          onMouseEnter={() => isSidebarOpen && setProfileOpen(true)}
-          onMouseLeave={() => isSidebarOpen && setProfileOpen(false)}
-        >
-          <div className="flex items-center gap-2 cursor-pointer">
-            <Avatar className="w-8 h-8">
-              {avatarSrc ? (
-                <AvatarImage src={avatarSrc} alt={displayName} />
-              ) : (
-                <AvatarFallback className="bg-[#2E7D7D] text-white font-bold">
-                  {displayName[0]?.toUpperCase() ?? "U"}
-                </AvatarFallback>
-              )}
-            </Avatar>
-            {isSidebarOpen && (
-              <span className="text-white text-sm font-semibold truncate">
-                {displayName}
-              </span>
-            )}
-          </div>
-
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            size="sm"
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-gray-300 hover:bg-red-900/50 hover:text-red-400"
-          >
-            <LogOut size={16} />
-            {isSidebarOpen && <span className="text-sm">Logout</span>}
-          </Button>
-        </div>
       </nav>
+
+      {/* ---- Divider ---- */}
+      <div className="px-6 my-4">
+        <div className="h-px bg-white/10" />
+      </div>
+
+      {/* ---- Profile + Logout ---- */}
+      <div className="p-4 border-t border-white/10">
+        <div
+          className={`flex items-center gap-3 px-3 py-3 rounded-xl bg-[#2E7D7D]/10 hover:bg-[#2E7D7D]/20 transition-all ${
+            collapsed ? 'justify-center' : 'justify-between'
+          }`}
+        >
+          <Avatar className="w-9 h-9">
+            {avatarSrc ? (
+              <AvatarImage src={avatarSrc} alt={displayName} />
+            ) : (
+              <AvatarFallback className="bg-[#2E7D7D] text-white font-bold text-xs">
+                {displayName[0]?.toUpperCase() ?? 'U'}
+              </AvatarFallback>
+            )}
+          </Avatar>
+          {!collapsed && (
+            <>
+              <span className="text-white text-sm font-semibold truncate">{displayName}</span>
+              <Button onClick={handleLogout} variant="ghost" size="sm" className="text-gray-300 hover:bg-red-900/50 hover:text-red-400">
+                <LogOut size={16} />
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Bottom toggle ---- */}
+      <div className="p-4 border-t border-white/10">
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          className="w-full h-10 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+        </button>
+      </div>
     </aside>
   );
 }
