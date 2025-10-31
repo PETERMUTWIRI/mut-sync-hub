@@ -139,8 +139,7 @@ export default function UserDashboard() {
    saveLayoutMutation.mutate(validated);
   };
 
-  const planOrder: Record<PlanTier, number> = { free: 0, pro: 1, enterprise: 2 };
-  const userPlanTier: PlanTier = (orgProfile?.plan?.title?.toLowerCase() as PlanTier) || 'free';
+
 
   const handlePlanSelect = (plan: { title: string; packages: string[]; price: number }) => {
     router.push(`/payment?plan=${plan.title}`);
@@ -169,15 +168,42 @@ export default function UserDashboard() {
       </motion.div>
     );
 
-  /*  ----  RENDER  ----  */
+    /*  ----  NEW RENDER  ----  */
+  const cardDefs = [
+    /* ---------- Tier-0  must-see  ---------- */
+    { key: 'usage', plan: 'free' },
+    { key: 'plan', plan: 'free' },
+    { key: 'billing', plan: 'free' },
+    /* ---------- Tier-1  analytics  ---------- */
+    { key: 'query', plan: 'free' },
+    { key: 'schedule', plan: 'free' },
+    { key: 'notifications', plan: 'free' },
+    /* ---------- Tier-2  intelligence  ---------- */
+    { key: 'anomaly', plan: 'pro' },
+    { key: 'forecast', plan: 'pro' },
+    { key: 'insights', plan: 'enterprise' },
+  ] as const;
+
+  const planOrder: Record<PlanTier, number> = { free: 0, pro: 1, enterprise: 2 };
+  const userPlanLevel = planOrder[orgProfile?.plan?.title?.toLowerCase() as PlanTier] ?? 0;
+
   return (
-    <div className="bg-[#1E2A44] text-gray-100 font-inter w-full min-h-screen">
-      <header className="flex items-center justify-between px-8 py-4 bg-[#1E2A44] border-b border-[#2E7D7D]/30 shadow-lg w-full">
+    <div className="min-h-screen bg-[#0B1020] text-gray-100 font-inter">
+      {/* -------------- HEADER -------------- */}
+      <motion.header
+        initial={{ y: -20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-[#0B1020]/80 backdrop-blur-xl border-b border-white/10"
+      >
         <div className="flex items-center gap-4">
-          <Input type="text" placeholder="Ask AI or search..." className="bg-[#2E7D7D]/20 border-[#2E7D7D] text-gray-100 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D7D] w-64" />
-          <Select value={layoutMode} onValueChange={(value) => setLayoutMode(value as any)}>
-            <SelectTrigger className="bg-[#2E7D7D]/20 border-[#2E7D7D] text-gray-100">
-              <SelectValue placeholder="Layout Mode" />
+          <Input
+            type="text"
+            placeholder="Ask AI or search…"
+            className="w-64 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          />
+          <Select value={layoutMode} onValueChange={(v) => setLayoutMode(v as any)}>
+            <SelectTrigger className="bg-white/5 border border-white/10 text-sm">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="beginner">Beginner</SelectItem>
@@ -185,136 +211,78 @@ export default function UserDashboard() {
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-6">
-          <HiBell size={24} className="text-gray-300 hover:text-white" />
-          <div className="w-8 h-8 rounded-full bg-[#2E7D7D] flex items-center justify-center text-white font-bold">
+
+        <div className="flex items-center gap-4">
+          <HiBell className="w-5 h-5 text-gray-400 hover:text-white transition" />
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-bold text-sm">
             {orgProfile?.firstName?.[0] || orgProfile?.email?.[0] || 'U'}
           </div>
         </div>
-      </header>
+      </motion.header>
 
-      {showPlans && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-          <div className="bg-[#2E7D7D]/10 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-auto relative border border-[#2E7D7D]/30">
-            <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 text-2xl" onClick={() => setShowPlans(false)}>
-              &times;
-            </button>
-            <h2 className="text-3xl font-extrabold text-[#2E7D7D] mb-6 text-center">Choose Your Plan</h2>
-            <div className="flex flex-col gap-6">
-              {[
-                { title: 'Starter', packages: ['Basic Analytics', 'Email Support'], price: 500 },
-                { title: 'Pro', packages: ['Advanced Analytics', 'Priority Support', 'Team Access'], price: 2000 },
-                { title: 'Enterprise', packages: ['Custom Integrations', 'Dedicated Manager', 'Unlimited Users'], price: 10000 },
-              ].map((plan) => (
-                <div
-                  key={plan.title}
-                  className="border border-[#2E7D7D]/30 rounded-xl p-6 flex flex-col gap-2 hover:shadow-xl hover:border-[#2E7D7D] transition-all cursor-pointer"
-                  onClick={() => handlePlanSelect(plan)}
-                >
-                  <div className="text-2xl font-bold text-gray-100 mb-2">{plan.title}</div>
-                  <ul className="mb-2">
-                    {plan.packages.map((pkg) => (
-                      <li key={pkg} className="text-gray-300 text-base">
-                        {pkg}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="text-xl font-extrabold text-[#2E7D7D]">KES {plan.price.toLocaleString()}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
+      {/* -------------- MAIN GRID -------------- */}
+      <main className="p-6 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {cardDefs.map(({ key, plan }, idx) => {
+          const locked = planOrder[plan] > userPlanLevel;
 
-      <main className="p-6 max-w-7xl mx-auto w-full grid grid-cols-12 gap-6">
-        {/*  ----  DROP ZONE (grid)  ----  */}
-        <section
-          id="drop-zone"
-          className="col-span-12 min-h-[600px] rounded-xl border-2 border-dashed border-[#2E7D7D]/40 bg-[#1E2A44]/30 relative transition"
-        >
-          {activeKeys.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400">Drag cards here to build your dashboard</div>
-          )}
+          return (
+            <motion.div
+              key={key}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.08 }}
+              className="group relative bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md
+                         hover:border-cyan-400/50 transition-all duration-300 overflow-hidden"
+            >
+              {/* animated border glow */}
+              <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-          <section className="col-span-12 min-h-[600px] rounded-xl border-2 border-dashed border-[#2E7D7D]/40 bg-[#1E2A44]/30 p-6">
-            <div className="grid grid-cols-12 gap-4">
-              {Array.isArray(activeKeys) &&
-                activeKeys.map((key) => {
-                  const card = DOCK_CARDS.find((c) => c.key === key);
-                  if (!card) return null;
-                  const locked = planOrder[card.plan as PlanTier] > (orgProfile?.plan?.title ? planOrder[orgProfile.plan.title.toLowerCase() as PlanTier] : 0);
+              {/* card content */}
+              <div className="relative">
+                {key === 'usage' && <UsageProgressBar />}
+                {key === 'plan' && <PlanStatus />}
+                {key === 'billing' && <BillingCard />}
+                {key === 'notifications' && <NotificationsCard />}
+                {key === 'query' && <QueryAnalytics />}
+                {key === 'schedule' && <ScheduleAnalytics />}
+                {key === 'anomaly' && <AnomalyDetectionCard />}
+                {key === 'forecast' && <ForecastCard />}
+                {key === 'insights' && <UserInsightsCard />}
+              </div>
 
-                  return (
-                    <div key={key} className="col-span-3 glass-card relative p-4">
-                      {key === 'usage' && <UsageProgressBar />}
-                      {key === 'plan' && <PlanStatus />}
-                      {key === 'billing' && <BillingCard />}
-                      {key === 'notifications' && <NotificationsCard />}
-                      {key === 'query' && <QueryAnalytics />}
-                      {key === 'schedule' && <ScheduleAnalytics />}
-                      {key === 'anomaly' && <AnomalyDetectionCard />}
-                      {key === 'forecast' && <ForecastCard />}
-                      {key === 'insights' && <UserInsightsCard />}
-
-                      {locked && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
-                          <div className="text-center">
-                            <div className="text-xs font-inter text-gray-300 mb-1">Plan Locked</div>
-                            <div className="text-xs font-inter text-gray-400 mb-2">{card.plan} required</div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-xs border-[#2E7D7D] text-[#2E7D7D] hover:bg-[#2E7D7D]/20"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push('/payment');
-                              }}
-                            >
-                              Upgrade →
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-            </div>
-          </section>
-        </section>
-
-        {/*  ----  DOCK (now under the grid)  ----  */}
-        <aside className="col-span-12 mt-6">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4">Available Cards</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {DOCK_CARDS.map((card) => {
-              const locked = planOrder[card.plan as PlanTier] > (orgProfile?.plan?.title ? planOrder[orgProfile.plan.title.toLowerCase() as PlanTier] : 0);
-              return (
-                <div
-                  key={card.key}
-                  className={`flex items-center gap-2 p-2 rounded-lg border transition
-                    ${locked ? 'border-red-500/30 bg-red-500/10 opacity-60' : 'border-[#2E7D7D]/40 bg-[#2E7D7D]/10 hover:bg-[#2E7D7D]/20'}`}
-                >
-                  <div className="text-sm">{card.icon}</div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{card.name}</div>
-                    <div className="text-xs text-gray-400">{card.plan}</div>
+              {/* lock overlay */}
+              {locked && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-2xl">
+                  <div className="text-center">
+                    <div className="text-xs text-gray-300 mb-1">Plan Locked</div>
+                    <div className="text-xs text-gray-400 mb-3">{plan} required</div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs border-cyan-400 text-cyan-400 hover:bg-cyan-400/10"
+                      onClick={() => router.push('/payment')}
+                    >
+                      Upgrade →
+                    </Button>
                   </div>
-                  {locked && <HiLockClosed className="text-red-400 text-xs" />}
                 </div>
-              );
-            })}
-          </div>
-        </aside>
+              )}
+            </motion.div>
+          );
+        })}
       </main>
 
+      {/* -------------- FLOATING AI CHAT -------------- */}
       <AIChatButton />
 
+      {/* -------------- GLOBAL STYLES -------------- */}
       <style jsx global>{`
-        #drop-zone.drop-active {
-          border-color: #2e7d7d;
-          background-color: rgba(46, 125, 125, 0.15);
-          box-shadow: 0 0 0 2px rgba(46, 125, 125, 0.5);
+        body {
+          background: #0b1020;
+        }
+        .glass-card {
+          background: rgba(255, 255, 255, 0.03);
+          backdrop-filter: blur(16px);
         }
       `}</style>
     </div>
