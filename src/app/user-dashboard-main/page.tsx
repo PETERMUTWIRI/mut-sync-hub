@@ -19,7 +19,7 @@ import {
   HiLockClosed,
 } from 'react-icons/hi';
 import { motion } from 'framer-motion';
-import { Responsive, WidthProvider } from 'react-grid-layout';
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,7 @@ import 'react-grid-layout/css/styles.css';
 import { useOrgProfile } from '@/hooks/useOrgProfile';
 import { toast } from 'react-hot-toast';
 
-const ResponsiveGridLayout = WidthProvider(Responsive);
+// const ResponsiveGridLayout = WidthProvider(Responsive);
 
 /*  –––––––––––––––  LAZY CARDS  –––––––––––––––  */
 const UsageProgressBar      = dynamic(() => import('@/components/user/UsageProgressBar').then((m) => m.default), { ssr: false });
