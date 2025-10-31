@@ -255,57 +255,61 @@ export default function UserDashboard() {
             breakpoints={{ lg: 1200, md: 996, sm: 768 }}
             cols={{ lg: 12, md: 10, sm: 6 }}
             rowHeight={100}
-            onLayoutChange={handleLayoutChange}
+            onLayoutChange={(newLayout) => {
+             if (!Array.isArray(newLayout)) return;
+             handleLayoutChange(newLayout);
+            }}
             isDraggable
             isResizable
           >
-            {activeKeys.map((key) => {
-              const card = DOCK_CARDS.find((c) => c.key === key);
-              if (!card) return null;
-              const locked = planOrder[card.plan as PlanTier] > (orgProfile?.plan?.title ? planOrder[orgProfile.plan.title.toLowerCase() as PlanTier] : 0);
+            {Array.isArray(activeKeys) &&
+              activeKeys.map((key) => {
+                const card = DOCK_CARDS.find((c) => c.key === key);
+                if (!card) return null;
+                const locked = planOrder[card.plan as PlanTier] > (orgProfile?.plan?.title ? planOrder[orgProfile.plan.title.toLowerCase() as PlanTier] : 0);
 
-              return (
-                <div key={key} className="glass-card relative">
-                  {key === 'usage' && <UsageProgressBar />}
-                  {key === 'plan' && <PlanStatus />}
-                  {key === 'billing' && <BillingCard />}
-                  {key === 'notifications' && <NotificationsCard />}
-                  {key === 'query' && <QueryAnalytics />}
-                  {key === 'schedule' && <ScheduleAnalytics />}
-                  {key === 'anomaly' && <AnomalyDetectionCard />}
-                  {key === 'forecast' && <ForecastCard />}
-                  {key === 'insights' && <UserInsightsCard />}
+                return (
+                 <div key={key} className="glass-card relative">
+                    {key === 'usage' && <UsageProgressBar />}
+                    {key === 'plan' && <PlanStatus />}
+                    {key === 'billing' && <BillingCard />}
+                    {key === 'notifications' && <NotificationsCard />}
+                    {key === 'query' && <QueryAnalytics />}
+                    {key === 'schedule' && <ScheduleAnalytics />}
+                    {key === 'anomaly' && <AnomalyDetectionCard />}
+                    {key === 'forecast' && <ForecastCard />}
+                    {key === 'insights' && <UserInsightsCard />}
 
-                  {locked && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
-                      <div className="text-center">
-                        <div className="text-xs font-inter text-gray-300 mb-1">Plan Locked</div>
-                        <div className="text-xs font-inter text-gray-400 mb-2">{card.plan} required</div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-xs border-[#2E7D7D] text-[#2E7D7D] hover:bg-[#2E7D7D]/20"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push('/payment');
-                          }}
-                        >
-                          Upgrade →
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                    {locked && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-xl">
+                        <div className="text-center">
+                         <div className="text-xs font-inter text-gray-300 mb-1">Plan Locked</div>
+                         <div className="text-xs font-inter text-gray-400 mb-2">{card.plan} required</div>
+                         <Button
+                           size="sm"
+                           variant="outline"
+                           className="text-xs border-[#2E7D7D] text-[#2E7D7D] hover:bg-[#2E7D7D]/20"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             router.push('/payment');
+                           }}
+                          >
+                           Upgrade →
+                          </Button>
+                        </div>
+                     </div>
+                    )}
 
-                  <button
-                    onClick={() => setActiveKeys((keys) => keys.filter((k) => k !== key))}
-                    className="absolute top-1 right-1 text-gray-400 hover:text-white text-xs"
-                  >
-                    ×
-                  </button>
-                </div>
-              );
-            })}
-          </ResponsiveGridLayout>
+                    <button
+                     onClick={() => setActiveKeys((keys) => keys.filter((k) => k !== key))}
+                     className="absolute top-1 right-1 text-gray-400 hover:text-white text-xs"
+                   >
+                      ×
+                    </button>
+                  </div>
+               );
+             })}
+            </ResponsiveGridLayout>
         </section>
 
         {/*  ----  DOCK (now under the grid)  ----  */}

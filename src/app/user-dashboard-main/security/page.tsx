@@ -264,7 +264,7 @@ export default function SecurityPage() {
             <CardHeader><CardTitle className="text-[#2E7D7D]">Change Password</CardTitle></CardHeader>
             <CardContent>
               <p className="text-gray-300 mb-4">Update your password regularly.</p>
-              <Button onClick={() => router.push('/profile')} className="w-full bg-[#2E7D7D] hover:bg-[#2E7D7D]/80 text-white">Change Password</Button>
+              <Button onClick={() => router.push('/user-dashboard-main/profile')} className="w-full bg-[#2E7D7D] hover:bg-[#2E7D7D]/80 text-white">Change Password</Button>
             </CardContent>
           </Card>
         </div>
