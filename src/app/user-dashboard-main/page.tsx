@@ -332,9 +332,10 @@ export default function UserDashboard() {
         >
           <div className="text-xs text-gray-400 mb-2">SCHEDULE HEALTH</div>
           <div className="flex items-center gap-2">
-            {scheduleHealth.map((h, i) => (
-              <div key={i} className={`w-3 h-3 rounded-full ${h ? 'bg-green-500' : 'bg-red-500'}`}/>
-            ))}
+            {scheduleHealth.map((h, i) => {
+              const dotColor = h ? 'bg-green-500' : 'bg-red-500';
+                return <div key={i} className={`w-3 h-3 rounded-full ${dotColor}`}/>;
+            })}
           </div>
           <div className="mt-4 text-green-400 text-sm">98 % on time</div>
         </motion.div>
