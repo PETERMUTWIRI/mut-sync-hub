@@ -184,8 +184,21 @@ export default function UserDashboard() {
     { key: 'insights', plan: 'enterprise' },
   ] as const;
 
+
+   /*  ----  COMPLETE NOBEL-PRIZE RENDER  ----  */
+  /* fake data stubs – swap for real queries later */
+  const usagePercent = 72;
+  const monthSpend = 128_500;
+  const sparkPoints = '0,40 20,25 40,30 60,15 80,20 100,10';
+  const avgQuery = 123;
+  const scheduleHealth = Array(20).fill(true);
+  const unread = 3;
+  const anomalies = 7;
+  const confidence = 91;
+  const insight = 'Your nightly jobs run 30 % faster on weekdays—consider scaling down on weekends.';
+
   const planOrder: Record<PlanTier, number> = { free: 0, pro: 1, enterprise: 2 };
-  const userPlanLevel = planOrder[orgProfile?.plan?.title?.toLowerCase() as PlanTier] ?? 0;
+  const userPlanLevel = planOrder[(orgProfile?.plan?.title?.toLowerCase() as PlanTier) || 'free'];
 
   return (
     <div className="min-h-screen bg-[#0B1020] text-gray-100 font-inter">
@@ -220,71 +233,185 @@ export default function UserDashboard() {
         </div>
       </motion.header>
 
-      {/* -------------- MAIN GRID -------------- */}
+      {/* -------------- ENTERPRISE STORY GRID -------------- */}
       <main className="p-6 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {cardDefs.map(({ key, plan }, idx) => {
-          const locked = planOrder[plan] > userPlanLevel;
+        {/* 1️⃣  USAGE  –  radial burn-meter  */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0 }}
+          className="relative h-64 bg-white/5 border border-white/10 rounded-2xl p-4 overflow-hidden"
+        >
+          <div className="absolute top-4 left-4 text-xs text-gray-400">CREDITS BURN</div>
+          <svg className="w-full h-full" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" stroke="#ffffff1a" strokeWidth="8" fill="none"/>
+            <circle
+              cx="50" cy="50" r="42" stroke="url(#burn)"
+              strokeWidth="8" fill="none" strokeDasharray="264"
+              strokeDashoffset={264 - (usagePercent / 100) * 264}
+              strokeLinecap="round" className="rotate-[-90deg] origin-center
+              transition-all duration-1000 ease-out"/>
+            <defs>
+              <linearGradient id="burn" x1="0" y1="0" x2="1" y2="1">
+                <stop stopColor="#22d3ee"/><stop offset="1" stopColor="#f59e0b"/>
+              </linearGradient>
+            </defs>
+            <text x="50" y="50" textAnchor="middle" dy=".3em"
+                  className="fill-white font-bold text-2xl">{usagePercent}%</text>
+          </svg>
+        </motion.div>
 
-          return (
-            <motion.div
-              key={key}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.08 }}
-              className="group relative bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md
-                         hover:border-cyan-400/50 transition-all duration-300 overflow-hidden"
-            >
-              {/* animated border glow */}
-              <div className="absolute -inset-px rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+        {/* 2️⃣  PLAN  –  tier badge with glow  */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08 }}
+          className="relative h-64 bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-center"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/20 to-transparent opacity-0 group-hover:opacity-100 transition"/>
+          <div className="text-center">
+            <div className="text-gray-400 text-xs mb-1">CURRENT PLAN</div>
+            <div className="text-3xl font-extrabold bg-clip-text text-transparent
+                            bg-gradient-to-r from-cyan-400 to-blue-500">{orgProfile?.plan?.title || 'Free'}</div>
+            <div className="text-cyan-400 text-xs mt-2 cursor-pointer"
+                 onClick={() => setShowPlans(true)}>Upgrade →</div>
+          </div>
+        </motion.div>
 
-              {/* card content */}
-              <div className="relative">
-                {key === 'usage' && <UsageProgressBar />}
-                {key === 'plan' && <PlanStatus />}
-                {key === 'billing' && <BillingCard />}
-                {key === 'notifications' && <NotificationsCard />}
-                {key === 'query' && <QueryAnalytics />}
-                {key === 'schedule' && <ScheduleAnalytics />}
-                {key === 'anomaly' && <AnomalyDetectionCard />}
-                {key === 'forecast' && <ForecastCard />}
-                {key === 'insights' && <UserInsightsCard />}
-              </div>
+        {/* 3️⃣  BILLING  –  mini spark-line  */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.16 }}
+          className="relative h-64 bg-white/5 border border-white/10 rounded-2xl p-4"
+        >
+          <div className="text-xs text-gray-400 mb-2">SPEND THIS MONTH</div>
+          <div className="text-2xl font-bold">KES {monthSpend.toLocaleString()}</div>
+          <svg className="w-full h-24 mt-3" preserveAspectRatio="none">
+            <polyline points={sparkPoints} fill="none" stroke="#22d3ee"
+                      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          <div className="absolute bottom-4 right-4 text-xs text-green-400">↗ 12 %</div>
+        </motion.div>
 
-              {/* lock overlay */}
-              {locked && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-2xl">
-                  <div className="text-center">
-                    <div className="text-xs text-gray-300 mb-1">Plan Locked</div>
-                    <div className="text-xs text-gray-400 mb-3">{plan} required</div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="text-xs border-cyan-400 text-cyan-400 hover:bg-cyan-400/10"
-                      onClick={() => router.push('/payment')}
-                    >
-                      Upgrade →
-                    </Button>
-                  </div>
+        {/* 4️⃣  QUERY  –  gauge  */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.24 }}
+          className="relative h-64 bg-white/5 border border-white/10 rounded-2xl p-4"
+        >
+          <div className="text-xs text-gray-400">QUERY PERFORMANCE</div>
+          <div className="flex items-center justify-center h-full">
+            <div className="relative w-40 h-40">
+              <div className="absolute inset-0 rounded-full"
+                   style={{
+                     background: 'conic-gradient(#22d3ee 0deg, #22d3ee 216deg, #ffffff1a 216deg)',
+                     mask: 'radial-gradient(circle at center, transparent 56%, black 57%)'
+                   }}/>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div>
+                  <div className="text-3xl font-bold">{avgQuery} ms</div>
+                  <div className="text-xs text-gray-400 text-center">AVG</div>
                 </div>
-              )}
-            </motion.div>
-          );
-        })}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 5️⃣  SCHEDULE  –  timeline dots  */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.32 }}
+          className="relative h-64 bg-white/5 border border-white/10 rounded-2xl p-4"
+        >
+          <div className="text-xs text-gray-400 mb-2">SCHEDULE HEALTH</div>
+          <div className="flex items-center gap-2">
+            {scheduleHealth.map((h, i) => (
+              <div key={i} className={`w-3 h-3 rounded-full ${h ? 'bg-green-500' : 'bg-red-500'}`}/>
+            ))}
+          </div>
+          <div className="mt-4 text-green-400 text-sm">98 % on time</div>
+        </motion.div>
+
+        {/* 6️⃣  NOTIFICATIONS  –  unread orb  */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="relative h-64 bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-center"
+        >
+          <div className="relative">
+            <HiBell className="w-12 h-12 text-gray-500"/>
+            {unread > 0 && (
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-cyan-400 rounded-full flex items-center justify-center text-black text-xs font-bold">
+                {unread}
+              </div>
+            )}
+          </div>
+          <div className="ml-4">
+            <div className="text-gray-400 text-xs">UNREAD</div>
+            <div className="text-2xl font-bold">{unread}</div>
+          </div>
+        </motion.div>
+
+        {/* 7️⃣  ANOMALY  –  pulsing dot  */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.48 }}
+          className="relative h-64 bg-white/5 border border-white/10 rounded-2xl p-4"
+        >
+          <div className="text-xs text-gray-400">ANOMALIES</div>
+          <div className="mt-12 flex items-center justify-center gap-3">
+            <div className="w-4 h-4 bg-red-500 rounded-full animate-pulse"/>
+            <div className="text-3xl font-bold">{anomalies}</div>
+          </div>
+          <div className="absolute bottom-4 left-4 text-xs text-gray-500">Last 24 h</div>
+        </motion.div>
+
+        {/* 8️⃣  FORECAST  –  confidence ring  */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.56 }}
+          className="relative h-64 bg-white/5 border border-white/10 rounded-2xl p-4"
+        >
+          <div className="text-xs text-gray-400">FORECAST CONFIDENCE</div>
+          <svg className="w-full h-full" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" stroke="#ffffff1a" strokeWidth="10" fill="none"/>
+            <circle cx="50" cy="50" r="40" stroke="#22d3ee" strokeWidth="10" fill="none"
+                    strokeDasharray="251" strokeDashoffset={251 - (confidence * 2.51)}
+                    strokeLinecap="round" className="rotate-[-90deg] origin-center"/>
+            <text x="50" y="50" textAnchor="middle" dy=".3em" className="fill-white font-bold text-xl">
+              {confidence}%
+            </text>
+          </svg>
+        </motion.div>
+
+        {/* 9️⃣  INSIGHTS  –  tip of the day  */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.64 }}
+          className="relative h-64 bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-col justify-center"
+        >
+          <div className="text-xs text-gray-400 mb-2">AI INSIGHT</div>
+          <div className="text-sm italic text-gray-200">“{insight}”</div>
+          <div className="mt-3 text-xs text-cyan-400 cursor-pointer">Explore →</div>
+        </motion.div>
       </main>
 
       {/* -------------- FLOATING AI CHAT -------------- */}
       <AIChatButton />
 
       {/* -------------- GLOBAL STYLES -------------- */}
-      <style jsx global>{`
-        body {
-          background: #0b1020;
-        }
-        .glass-card {
-          background: rgba(255, 255, 255, 0.03);
-          backdrop-filter: blur(16px);
-        }
-      `}</style>
-    </div>
-  );
-}
+        <style jsx global>{`
+          body {
+            background: #0b1020;
+          }
+        `}</style>
+      </div>
+    );
+  }
