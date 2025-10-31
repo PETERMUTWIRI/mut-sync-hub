@@ -25,7 +25,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import dynamic from 'next/dynamic';
-import 'react-grid-layout/css/styles.css';
 // import 'react-resizable/css/styles.css';
 import { useOrgProfile } from '@/hooks/useOrgProfile';
 import { toast } from 'react-hot-toast';
@@ -233,17 +232,6 @@ export default function UserDashboard() {
         <section
           id="drop-zone"
           className="col-span-12 min-h-[600px] rounded-xl border-2 border-dashed border-[#2E7D7D]/40 bg-[#1E2A44]/30 relative transition"
-          onDragEnter={() => document.getElementById('drop-zone')?.classList.add('drop-active')}
-          onDragLeave={() => document.getElementById('drop-zone')?.classList.remove('drop-active')}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            document.getElementById('drop-zone')?.classList.remove('drop-active');
-            e.preventDefault();
-            const key = e.dataTransfer.getData('cardKey');
-            const card = DOCK_CARDS.find((c) => c.key === key);
-            if (!card) return;
-            if (!activeKeys.includes(key)) setActiveKeys((keys) => [...keys, key]);
-          }}
         >
           {activeKeys.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400">Drag cards here to build your dashboard</div>
@@ -304,19 +292,8 @@ export default function UserDashboard() {
               return (
                 <div
                   key={card.key}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('cardKey', card.key);
-                    /*  normal-size ghost  */
-                    const ghost = e.currentTarget.cloneNode(true) as HTMLElement;
-                    ghost.style.transform = 'scale(1)';
-                    ghost.style.opacity = '0.8';
-                    document.body.appendChild(ghost);
-                    e.dataTransfer.setDragImage(ghost, 0, 0);
-                    setTimeout(() => document.body.removeChild(ghost), 0);
-                  }}
                   className={`flex items-center gap-2 p-2 rounded-lg border transition
-                    ${locked ? 'border-red-500/30 bg-red-500/10 opacity-60' : 'border-[#2E7D7D]/40 bg-[#2E7D7D]/10 hover:bg-[#2E7D7D]/20 cursor-move'}`}
+                    ${locked ? 'border-red-500/30 bg-red-500/10 opacity-60' : 'border-[#2E7D7D]/40 bg-[#2E7D7D]/10 hover:bg-[#2E7D7D]/20'}`}
                 >
                   <div className="text-sm">{card.icon}</div>
                   <div className="flex-1">

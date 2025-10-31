@@ -23,12 +23,33 @@ export default function NotificationsCard() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    fetch('/api/notifications').then((r) => r.json()).then(setNotifications);
-  const socket: any = io(`${process.env.NEXT_PUBLIC_ORIGIN}/analytics`);
-  socket.on('notification:new', (n: Notification) => setNotifications((prev) => [n, ...prev]));
-  socket.on('notification:read', (id: string) => setNotifications((prev) => prev.map((p) => (p.id === id ? { ...p, status: 'READ' } : p))));
-  socket.on('notification:readAll', () => setNotifications((prev) => prev.map((p) => ({ ...p, status: 'READ' }))));
-  return () => { socket.disconnect(); };
+    // Defensive fetch: API may return either an array or an object like { notifications: [...] }
+    fetch('/api/notifications')
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) return setNotifications(data);
+        if (data && Array.isArray((data as any).notifications)) return setNotifications((data as any).notifications);
+        // fallback to empty array
+        return setNotifications([]);
+      })
+      .catch(() => setNotifications([]));
+
+    // Create socket only if window is available and origin is configured; otherwise skip socket usage.
+    try {
+      const origin = (typeof window !== 'undefined' && window.location?.origin) || process.env.NEXT_PUBLIC_ORIGIN || '';
+      if (origin) {
+        const socket: any = io(`${origin}/analytics`);
+        socket.on('notification:new', (n: Notification) => setNotifications((prev) => [n, ...prev]));
+        socket.on('notification:read', (id: string) => setNotifications((prev) => prev.map((p) => (p.id === id ? { ...p, status: 'READ' } : p))));
+        socket.on('notification:readAll', () => setNotifications((prev) => prev.map((p) => ({ ...p, status: 'READ' }))));
+        return () => {
+          socket.disconnect();
+        };
+      }
+    } catch (e) {
+      // ignore socket errors; notifications will still render from fetch
+      console.warn('Notifications socket disabled', e);
+    }
   }, []);
 
   const unreadCount = notifications.filter((n) => n.status === 'UNREAD').length;
