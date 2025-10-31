@@ -234,128 +234,330 @@ export default function ProfilePage() {
 
   const showBanner = isOnboard && !profile?.firstName;
 
+    /* ---------- stubs (wire to real data later) ---------- */
+  const usagePercent = 72;
+  const monthSpend = 128_500;
+  const sparkPoints = '0,40 20,25 40,30 60,15 80,20 100,10';
+  const avgQuery = 123;
+  const scheduleHealth = Array(20).fill(true);
+  const unread = 3;
+  const anomalies = 7;
+  const confidence = 91;
+  const insight = 'Your nightly jobs run 30 % faster on weekdays—consider scaling down on weekends.';
+
+  /* ---------- safety guards ---------- */
+  const safeAudit = Array.isArray(audit) ? audit : [];
+
+  if (loading) return (
+    <div className="min-h-screen bg-[#0B1020] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400" />
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-[#1E2A44] text-gray-100 font-inter">
+    <>
       <Toaster position="top-right" />
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen bg-[#0B1020] text-gray-100 font-inter"
+      >
+        {/* -------------- HEADER -------------- */}
+        <motion.header
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-[#0B1020]/80 backdrop-blur-xl border-b border-white/10"
+        >
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+            Profile & Settings
+          </h1>
+          <Button
+            onClick={() => router.back()}
+            className="bg-white/10 text-white hover:bg-white/20"
+          >
+            ← Back
+          </Button>
+        </motion.header>
 
-      <header className="sticky top-0 z-20 bg-[#1E2A44]/60 backdrop-blur-lg border-b border-[#2E7D7D]/30 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-cyan-300 bg-clip-text text-transparent">Profile & Settings</h1>
-          <Button onClick={() => router.back()} className="bg-[#2E7D7D]/20 border border-[#2E7D7D] text-white hover:bg-[#2E7D7D]/40">← Back</Button>
-        </div>
-      </header>
-
-      {showBanner && (
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="mx-auto max-w-6xl px-6 mt-4">
-          <div className="rounded-xl bg-gradient-to-r from-teal-500 to-cyan-400 text-white p-4 flex items-center justify-between">
+        {/* -------------- ONBOARD BANNER -------------- */}
+        {showBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-6 mt-6 bg-gradient-to-r from-cyan-400 to-blue-500 text-black rounded-2xl p-4 flex items-center justify-between"
+          >
             <div>
               <h3 className="font-bold text-lg">Welcome! Let’s add your name</h3>
               <p className="text-sm">Finish setting up your account to unlock all features.</p>
             </div>
-            <Button onClick={() => document.getElementById('firstName')?.focus()} className="bg-white text-teal-600 hover:bg-gray-100">Get Started</Button>
-          </div>
-        </motion.div>
-      )}
+            <Button
+              onClick={() => document.getElementById('firstName')?.focus()}
+              className="bg-black text-white hover:bg-gray-800"
+            >
+              Get Started
+            </Button>
+          </motion.div>
+        )}
 
-      <main className="max-w-6xl mx-auto px-6 py-10 grid gap-8">
-
-        {/* -------- Personal Card -------- */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl bg-gradient-to-br from-[#1E2A44] to-[#2E7D7D]/10 border border-[#2E7D7D]/30 p-6 shadow-2xl">
-          <h2 className="text-xl font-semibold text-teal-300 mb-4">Personal Information</h2>
-          <div className="flex flex-col sm:flex-row gap-6 items-start">
-            <div className="relative group">
-              <img
-                src={avatarPreview || `https://ui-avatars.com/api/?name=${name}&background=2E7D7D&color=fff`}
-                alt="Avatar"
-                className="w-24 h-24 rounded-full object-cover ring-4 ring-[#2E7D7D]/40 group-hover:ring-teal-400 transition"
-              />
-              <button onClick={() => fileInput.current?.click()} className="absolute bottom-0 right-0 bg-teal-500 rounded-full p-2 text-white opacity-80 group-hover:opacity-100" aria-label="Change avatar"><CameraIcon className="w-5 h-5" /></button>
-              <input ref={fileInput} type="file" accept="image/*" onChange={onAvatarPick} className="hidden" />
-              {avatar && <Button onClick={uploadAvatar} className="mt-2 w-full bg-teal-600 hover:bg-teal-500">Upload</Button>}
-            </div>
-
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><Label className="text-teal-300">First Name</Label><Input id="firstName" value={name} onChange={e => setName(e.target.value)} className="bg-black/30 border-teal-500/50" placeholder="John" /></div>
-              <div><Label className="text-teal-300">Email</Label><Input value={email} onChange={e => setEmail(e.target.value)} className="bg-black/30 border-teal-500/50" placeholder="john@example.com" /></div>
-            </div>
-          </div>
-          <div className="mt-6 flex gap-3"><Button onClick={saveProfile} className="bg-gradient-to-r from-teal-500 to-cyan-400 text-white font-semibold hover:from-teal-600 hover:to-cyan-500">Save Profile</Button></div>
-        </motion.div>
-
-        {/* -------- Password Card -------- */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-2xl bg-gradient-to-br from-[#1E2A44] to-[#2E7D7D]/10 border border-[#2E7D7D]/30 p-6 shadow-2xl">
-          <h2 className="text-xl font-semibold text-teal-300 mb-4">Change Password</h2>
-          <div className="space-y-3">
-            <div className="relative">
-              <Label className="text-teal-300">New Password</Label>
-              <div className="flex items-center gap-2">
-                <Input type={showPwd ? 'text' : 'password'} value={pwd} onChange={e => setPwd(e.target.value)} className="bg-black/30 border-teal-500/50 pr-10" placeholder="Min 8 chars, mixed case, number & symbol" />
-                <button type="button" onClick={() => setShowPwd(s => !s)} className="absolute right-3 top-9 text-teal-300 hover:text-white" aria-label={showPwd ? 'Hide password' : 'Show password'}>
-                  {showPwd ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+        {/* -------------- MAIN GRID -------------- */}
+        <main className="p-6 max-w-6xl mx-auto grid gap-8">
+          {/* 1️⃣  PERSONAL  */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+          >
+            <h2 className="text-xl font-semibold text-cyan-400 mb-4">Personal Information</h2>
+            <div className="flex flex-col sm:flex-row gap-6 items-start">
+              {/* Avatar */}
+              <div className="relative group">
+                <img
+                  src={
+                    avatarPreview ||
+                    `https://ui-avatars.com/api/?name=${name}&background=2E7D7D&color=fff`
+                  }
+                  alt="Avatar"
+                  className="w-24 h-24 rounded-full object-cover ring-4 ring-white/10 group-hover:ring-cyan-400 transition"
+                />
+                <button
+                  onClick={() => fileInput.current?.click()}
+                  className="absolute bottom-0 right-0 bg-cyan-400 rounded-full p-2 text-black opacity-80 group-hover:opacity-100"
+                  aria-label="Change avatar"
+                >
+                  <CameraIcon className="w-5 h-5" />
                 </button>
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="image/*"
+                  onChange={onAvatarPick}
+                  className="hidden"
+                />
+                {avatar && (
+                  <Button
+                    onClick={uploadAvatar}
+                    className="mt-2 w-full bg-cyan-500 text-black hover:bg-cyan-400"
+                  >
+                    Upload
+                  </Button>
+                )}
               </div>
-              <div className="w-full bg-black/30 rounded h-2 mt-2"><div className={`h-2 rounded ${['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500'][pwdStrength]}`} style={{ width: `${(pwdStrength + 1) * 25}%` }} /></div>
-              <p className="text-xs text-gray-400 mt-1">{['Very weak', 'Weak', 'Fair', 'Strong', 'Very strong'][pwdStrength]}</p>
+
+              {/* Fields */}
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-cyan-300">First Name</Label>
+                  <Input
+                    id="firstName"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="bg-white/5 border border-white/10 text-white"
+                    placeholder="John"
+                  />
+                </div>
+                <div>
+                  <Label className="text-cyan-300">Email</Label>
+                  <Input
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="bg-white/5 border border-white/10 text-white"
+                    placeholder="john@example.com"
+                  />
+                </div>
+              </div>
             </div>
-            <Button onClick={savePassword} disabled={pwdStrength < 3} className="bg-gradient-to-r from-teal-500 to-cyan-400 text-white font-semibold hover:from-teal-600 hover:to-cyan-500 disabled:opacity-50">Change Password</Button>
-          </div>
-        </motion.div>
+            <div className="mt-6 flex gap-3">
+              <Button
+                onClick={saveProfile}
+                className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-semibold hover:from-cyan-500 hover:to-blue-600"
+              >
+                Save Profile
+              </Button>
+            </div>
+          </motion.div>
 
-        {/* -------- 2FA Card -------- */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="rounded-2xl bg-gradient-to-br from-[#1E2A44] to-[#2E7D7D]/10 border border-[#2E7D7D]/30 p-6 shadow-2xl">
-          <h2 className="text-xl font-semibold text-teal-300 mb-4">Two-Factor Authentication</h2>
-          <div className="flex items-center justify-between">
-            <div><p className="text-gray-300">Protect your account with an authenticator app.</p><p className="text-xs text-gray-500">Recommended for enterprise accounts.</p></div>
-            <Switch checked={mfaEnabled} onCheckedChange={toggleMFA} className="scale-110" />
-          </div>
-
-          <AnimatePresence>
-            {qr && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-6">
-                <p className="text-sm text-gray-300 mb-2">Scan with your authenticator app:</p>
-                <img src={qr} alt="QR Code" className="w-48 h-48 mx-auto" />
-                <div className="mt-4">
-                  <Label className="text-teal-300">Enter 6-digit code</Label>
-                  <Input placeholder="123456" maxLength={6} onChange={e => { if (e.target.value.length === 6) confirmMFA(e.target.value); }} className="bg-black/30 border-teal-500/50" />
+          {/* 2️⃣  PASSWORD  */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+          >
+            <h2 className="text-xl font-semibold text-cyan-400 mb-4">Change Password</h2>
+            <div className="space-y-3">
+              <div className="relative">
+                <Label className="text-cyan-300">New Password</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type={showPwd ? 'text' : 'password'}
+                    value={pwd}
+                    onChange={(e) => setPwd(e.target.value)}
+                    className="bg-white/5 border border-white/10 text-white pr-10"
+                    placeholder="Min 8 chars, mixed case, number & symbol"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd((s) => !s)}
+                    className="absolute right-3 top-9 text-cyan-300 hover:text-white"
+                    aria-label={showPwd ? 'Hide password' : 'Show password'}
+                  >
+                    {showPwd ? (
+                      <EyeSlashIcon className="w-5 h-5" />
+                    ) : (
+                      <EyeIcon className="w-5 h-5" />
+                    )}
+                  </button>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* -------- Sensitive-action demo -------- */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="rounded-2xl bg-gradient-to-br from-[#1E2A44] to-[#2E7D7D]/10 border border-[#2E7D7D]/30 p-6 shadow-2xl">
-          <h2 className="text-xl font-semibold text-teal-300 mb-4">Danger Zone</h2>
-          <p className="text-sm text-gray-300 mb-4">2FA verification required for high-risk actions.</p>
-          <Button onClick={() => requestSensitiveAction(() => toast('🗑️  Org delete requested (demo)'))} className="bg-red-600 hover:bg-red-500 text-white">Delete Organisation</Button>
-          <AnimatePresence>
-            {showMfaGate && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="mt-4">
-                <MFAGate onSuccess={runAfterMFA} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* -------- Activity Timeline -------- */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="rounded-2xl bg-gradient-to-br from-[#1E2A44] to-[#2E7D7D]/10 border border-[#2E7D7D]/30 p-6 shadow-2xl">
-          <h2 className="text-xl font-semibold text-teal-300 mb-4">Recent Activity</h2>
-          <div className="space-y-3 max-h-80 overflow-auto pr-2">
-            {Array.isArray(audit) && audit.map(log => (
-              <div key={log.id} className="flex items-start gap-4">
-                <div className="w-2 h-2 rounded-full bg-teal-400 mt-2" />
-                <div className="flex-1">
-                  <p className="text-sm text-white">{log.action}</p>
-                  <p className="text-xs text-gray-400">{new Date(log.createdAt).toLocaleString()} {log.ip && `• ${log.ip}`}</p>
+                <div className="w-full bg-white/10 rounded h-2 mt-2">
+                  <div
+                    className={`h-2 rounded ${
+                      ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500'][pwdStrength]
+                    }`}
+                    style={{ width: `${(pwdStrength + 1) * 25}%` }}
+                  />
                 </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {['Very weak', 'Weak', 'Fair', 'Strong', 'Very strong'][pwdStrength]}
+                </p>
               </div>
-            ))}
-          </div>
-        </motion.div>
-      </main>
+              <Button
+                onClick={savePassword}
+                disabled={pwdStrength < 3}
+                className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-semibold hover:from-cyan-500 hover:to-blue-600 disabled:opacity-50"
+              >
+                Change Password
+              </Button>
+            </div>
+          </motion.div>
 
-      {/* ---- Backup-codes modal ---- */}
-      <AnimatePresence>{showBackupModal && <BackupCodesModal codes={backupCodes} onClose={() => setShowBackupModal(false)} />}</AnimatePresence>
-    </div>
+          {/* 3️⃣  2FA  */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+          >
+            <h2 className="text-xl font-semibold text-cyan-400 mb-4">
+              Two-Factor Authentication
+            </h2>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-300">
+                  Protect your account with an authenticator app.
+                </p>
+                <p className="text-xs text-gray-500">
+                  Recommended for enterprise accounts.
+                </p>
+              </div>
+              <Switch
+                checked={mfaEnabled}
+                onCheckedChange={toggleMFA}
+                className="scale-110"
+              />
+            </div>
+
+            <AnimatePresence>
+              {qr && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-6"
+                >
+                  <p className="text-sm text-gray-300 mb-2">
+                    Scan with your authenticator app:
+                  </p>
+                  <img
+                    src={qr}
+                    alt="QR Code"
+                    className="w-48 h-48 mx-auto rounded-lg"
+                  />
+                  <div className="mt-4">
+                    <Label className="text-cyan-300">Enter 6-digit code</Label>
+                    <Input
+                      placeholder="123456"
+                      maxLength={6}
+                      onChange={(e) => {
+                        if (e.target.value.length === 6) confirmMFA(e.target.value);
+                      }}
+                      className="bg-white/5 border border-white/10 text-white"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* 4️⃣  DANGER ZONE  */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+          >
+            <h2 className="text-xl font-semibold text-cyan-400 mb-4">Danger Zone</h2>
+            <p className="text-sm text-gray-300 mb-4">
+              2FA verification required for high-risk actions.
+            </p>
+            <Button
+              onClick={() =>
+                requestSensitiveAction(() =>
+                  toast('🗑️  Org delete requested (demo)')
+                )
+              }
+              className="bg-red-600 text-white hover:bg-red-500"
+            >
+              Delete Organisation
+            </Button>
+            <AnimatePresence>
+              {showMfaGate && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mt-4"
+                >
+                  <MFAGate onSuccess={runAfterMFA} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* 5️⃣  ACTIVITY  */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+          >
+            <h2 className="text-xl font-semibold text-cyan-400 mb-4">Recent Activity</h2>
+            <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+              {safeAudit.map((log) => (
+                <div key={log.id} className="flex items-start gap-4">
+                  <div className="w-2 h-2 rounded-full bg-cyan-400 mt-2" />
+                  <div className="flex-1">
+                    <p className="text-sm text-white">{log.action}</p>
+                    <p className="text-xs text-gray-400">
+                      {new Date(log.createdAt).toLocaleString()}
+                      {log.ip && ` • ${log.ip}`}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </main>
+
+        {/* -------------- BACKUP-CODES MODAL -------------- */}
+        <AnimatePresence>
+          {showBackupModal && (
+            <BackupCodesModal
+              codes={backupCodes}
+              onClose={() => setShowBackupModal(false)}
+            />
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </>
   );
 }
