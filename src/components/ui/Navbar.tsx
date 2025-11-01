@@ -8,6 +8,41 @@ import { cn } from '@/lib/utils';
 
 const Navbar: React.FC = () => {
   const [open, setOpen] = useState(false);
+  const [accordion, setAccordion] = useState<string | null>(null);
+
+  /* ----------  MOBILE ACCORDION ITEM  ---------- */
+  const AccordionItem = ({ title, links }: { title: string; links: { label: string; href: string }[] }) => (
+    <div className="border-b border-white/10">
+      <button
+        onClick={() => setAccordion((a) => (a === title ? null : title))}
+        className="w-full flex items-center justify-between px-4 py-3 text-white hover:text-cyan-400"
+      >
+        <span className="text-sm font-medium">{title}</span>
+        <ChevronDown
+          className={cn('w-4 h-4 transition-transform', accordion === title && 'rotate-180')}
+        />
+      </button>
+      <div
+        className={cn(
+          'overflow-hidden transition-all duration-200',
+          accordion === title ? 'max-h-96' : 'max-h-0'
+        )}
+      >
+        <div className="px-6 pb-3 space-y-2">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              onClick={() => setOpen(false)}
+              className="block text-sm text-gray-300 hover:text-cyan-400"
+            >
+              {l.label}
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   /* ----------  MOBILE MENU  ---------- */
   const MobileMenu = () => (
@@ -19,44 +54,73 @@ const Navbar: React.FC = () => {
       onClick={() => setOpen(false)}
     >
       <div
-        className="absolute right-0 top-0 h-full w-4/5 max-w-sm bg-[#0B1020] border-l border-white/10 p-6"
+        className="absolute right-0 top-0 h-full w-4/5 max-w-sm bg-[#0B1020] border-l border-white/10 p-4 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <span className="text-white font-semibold">Menu</span>
           <button onClick={() => setOpen(false)} className="text-white">
             <X size={24} />
           </button>
         </div>
 
-        <nav className="space-y-4">
-          <Link href="/" className="block text-white hover:text-cyan-400">Home</Link>
-          <Link href="/user-dashboard-main" className="block text-white hover:text-cyan-400">Analytics</Link>
-          <Link href="/sign-in" className="block text-white hover:text-cyan-400">Login</Link>
-          <Link href="/sign-up" className="block text-white hover:text-cyan-400">Sign Up</Link>
+        <nav className="flex-1 space-y-1 overflow-y-auto">
+          <Link href="/" onClick={() => setOpen(false)} className="block px-4 py-3 text-white hover:text-cyan-400">Home</Link>
+
+          {/* Accordions */}
+          <AccordionItem
+            title="What We Do"
+            links={[
+              { label: 'AI Agent Ecosystems', href: '/solutions#ai-agents' },
+              { label: 'Cloud-Native Architecture', href: '/solutions#cloud-architecture' },
+              { label: 'Data Engineering', href: '/solutions#data-engineering' },
+              { label: 'Enterprise Chatbot Systems', href: '/solutions#enterprise-chatbots' },
+              { label: 'Full-Stack Development', href: '/solutions#fullstack' },
+              { label: 'Enterprise API Integrations', href: '/solutions#api-integrations' },
+              { label: 'IoT Cloud Platforms', href: '/solutions#iot-cloud' },
+              { label: 'Blockchain Integration', href: '/solutions#blockchain' },
+            ]}
+          />
+
+          <AccordionItem
+            title="Resources"
+            links={[
+              { label: 'Documentation', href: '/resources?category=documentation' },
+              { label: 'API Reference', href: '/resources?category=api' },
+              { label: 'Guides & Tutorials', href: '/resources?category=guides' },
+            ]}
+          />
+
+          <AccordionItem
+            title="Support"
+            links={[
+              { label: 'Support Center', href: '/what-we-do-support' },
+              { label: 'System Status', href: '/what-we-do-support' },
+              { label: 'Contact Us', href: '/what-we-do-support' },
+            ]}
+          />
+
+          <Link href="/user-dashboard-main" onClick={() => setOpen(false)} className="block px-4 py-3 text-white hover:text-cyan-400">Analytics Engine</Link>
         </nav>
+
+        {/* Auth */}
+        <div className="mt-4 flex gap-2">
+          <Link href="/sign-in" onClick={() => setOpen(false)} className="flex-1 bg-white/10 text-white py-2 rounded-lg text-center text-sm">Login</Link>
+          <Link href="/sign-up" onClick={() => setOpen(false)} className="flex-1 bg-cyan-500 text-black py-2 rounded-lg text-center text-sm">Sign Up</Link>
+        </div>
       </div>
     </div>
   );
 
-  /* ----------  DESKTOP MEGA-DROPDOWN  ---------- */
+  /* ----------  DESKTOP MEGA-DROPDOWN (unchanged)  ---------- */
   const MegaDropdown = () => (
     <div className="relative group hidden lg:block">
-      <button
-        className={cn(
-          'flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-white/5 hover:bg-cyan-400/10 hover:text-cyan-400 transition-all duration-200'
-        )}
-      >
+      <button className="flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-white/5 hover:bg-cyan-400/10 hover:text-cyan-400 transition-all duration-200">
         What We Do
         <ChevronDown className="ml-1 h-4 w-4 transition-transform group-hover:rotate-180" />
       </button>
-      <div
-        className={cn(
-          'absolute left-1/2 transform -translate-x-1/2 mt-2 w-[1100px] rounded-lg bg-[#0B1020] border border-white/10 shadow-xl p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto'
-        )}
-      >
+      <div className="absolute left-1/2 transform -translate-x-1/2 mt-2 w-[1100px] rounded-lg bg-[#0B1020] border border-white/10 shadow-xl p-6 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto">
         <div className="grid grid-cols-3 gap-8">
-          {/* What We Do */}
           <div>
             <h4 className="text-white font-medium text-sm uppercase tracking-wider mb-4">What We Do</h4>
             <Link href="/solutions#ai-agents" className="block text-white hover:text-cyan-400 py-2">AI Agent Ecosystems</Link>
@@ -64,7 +128,6 @@ const Navbar: React.FC = () => {
             <Link href="/solutions#data-engineering" className="block text-white hover:text-cyan-400 py-2">Data Engineering</Link>
             <Link href="/solutions#enterprise-chatbots" className="block text-white hover:text-cyan-400 py-2">Enterprise Chatbot Systems</Link>
           </div>
-          {/* More Services */}
           <div>
             <h4 className="text-white font-medium text-sm uppercase tracking-wider mb-4">More Services</h4>
             <Link href="/solutions#fullstack" className="block text-white hover:text-cyan-400 py-2">Full-Stack Development</Link>
@@ -72,7 +135,6 @@ const Navbar: React.FC = () => {
             <Link href="/solutions#iot-cloud" className="block text-white hover:text-cyan-400 py-2">IoT Cloud Platforms</Link>
             <Link href="/solutions#blockchain" className="block text-white hover:text-cyan-400 py-2">Blockchain Integration</Link>
           </div>
-          {/* Resources */}
           <div>
             <h4 className="text-white font-medium text-sm uppercase tracking-wider mb-4">Resources</h4>
             <Link href="/resources?category=documentation" className="block text-white hover:text-cyan-400 py-2">Documentation</Link>

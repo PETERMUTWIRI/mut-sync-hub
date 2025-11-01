@@ -16,27 +16,18 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="flex min-h-screen w-full bg-[#1E2A44] text-white font-inter">
-        {/* Sidebar: self-managed collapse */}
-        <aside className="shrink-0 flex flex-col h-screen bg-[#1E1E2F] text-gray-300">
-          <DashboardSidebar
-            displayName={user.displayName || (user as any).email || 'User'}
-            handleLogout={() => { window.location.href = '/handler/sign-out'; }}
-          />
-        </aside>
+      <div className="min-h-screen w-full bg-[#0B1020] text-white font-inter">
+        {/* TOP NAVBAR (replaces sidebar) */}
+        <DashboardSidebar
+          displayName={user.displayName || (user as any).email || 'User'}
+          handleLogout={() => { window.location.href = '/handler/sign-out'; }}
+        />
 
-        {/* Main content area */}
-        <main className="flex-1 flex flex-col">
+        {/* MAIN CONTENT */}
+        <main className="flex-1">
           <ProfileCompletionBanner />
-
-          <div className="flex-1 p-8">
-            <Suspense
-              fallback={
-                <div className="min-h-screen flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#2E7D7D]" />
-                </div>
-              }
-            >
+          <div className="p-6 max-w-7xl mx-auto">
+            <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400" /></div>}>
               {children}
             </Suspense>
           </div>
