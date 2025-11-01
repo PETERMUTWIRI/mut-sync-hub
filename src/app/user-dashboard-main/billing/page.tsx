@@ -2,16 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { useUser } from '@stackframe/stack';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getPlans } from '@/app/actions/plans';
-import { initiateSTKPush, getPaymentUsage, retryFailedPayment } from '@/app/actions/mpesa';
+import { initiateSTKPush, retryFailedPayment } from '@/app/actions/mpesa';
 import Spinner from '@/components/ui/Spinner';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { ChevronDown, Download, RotateCcw } from 'lucide-react';
+import { Download, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 /* ---------- helpers ---------- */
 const formatKsh = (n: number) => `KSH ${n.toLocaleString()}`;
@@ -19,13 +19,12 @@ const formatKsh = (n: number) => `KSH ${n.toLocaleString()}`;
 /* ---------- page ---------- */
 export default function BillingPage() {
   const user = useUser({ or: 'redirect' });
-  const router = useRouter();
 
   /* state */
   const [plans, setPlans] = useState<any[]>([]);
   const [currentPlan, setCurrentPlan] = useState<any>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [usage, setUsage] = useState<{ progress: number; limit: number; count: number }>({ progress: 0, limit: 0, count: 0 });
+  const [usage, setUsage] = useState({ progress: 0, limit: 0, count: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
@@ -33,19 +32,19 @@ export default function BillingPage() {
   const [phone, setPhone] = useState('');
   const [paying, setPaying] = useState(false);
 
-  /* bootstrap */
+  /* real data fetch */
   useEffect(() => {
     (async () => {
       try {
         const [p, u, inv] = await Promise.all([
           getPlans(),
-          getPaymentUsage(user.id),
-          fetchInvoices(user.id),            // local helper below
+          fetch(`/api/billing/usage?userId=${user.id}`).then((r) => r.json()),
+          fetch(`/api/billing/invoices?userId=${user.id}`).then((r) => r.json()),
         ]);
         setPlans(p);
         setUsage(u);
         setInvoices(inv);
-        setCurrentPlan(p.find((pl: any) => pl.price === 0)); // fallback
+        setCurrentPlan(p.find((pl: any) => pl.price === 0) ?? p[0]);
       } catch (e: any) {
         setError(e.message);
       } finally {
@@ -53,21 +52,6 @@ export default function BillingPage() {
       }
     })();
   }, [user.id]);
-
-  /* ---------- helpers ---------- */
-  async function fetchInvoices(uid: string) {
-    // todo: replace with real endpoint
-    return [
-      {
-        id: 'inv_1',
-        date: new Date().toISOString(),
-        amount: 3000,
-        status: 'PAID',
-        checkoutRequestId: 'ws_CO_123',
-        receipt: 'RJ5H2OG9F2',
-      },
-    ];
-  }
 
   /* ---------- actions ---------- */
   async function handleMpesaPay() {
@@ -85,9 +69,9 @@ export default function BillingPage() {
       });
       toast.success('Check your phone and enter PIN');
       setShowModal(false);
-      // poll for completion (cheap)
+      // poll for fresh usage
       setTimeout(async () => {
-        const fresh = await getPaymentUsage(user.id);
+        const fresh = await fetch(`/api/billing/usage?userId=${user.id}`).then((r) => r.json());
         setUsage(fresh);
       }, 7000);
     } catch (e: any) {
@@ -107,101 +91,104 @@ export default function BillingPage() {
   }
 
   /* ---------- UI ---------- */
-  if (loading) return <div className="min-h-screen bg-[#1E2A44] grid place-items-center"><Spinner /></div>;
-  if (error) return <div className="min-h-screen bg-[#1E2A44] grid place-items-center text-red-400">{error}</div>;
+  if (loading) return <div className="min-h-screen bg-[#0B1020] grid place-items-center"><Spinner /></div>;
+  if (error) return <div className="min-h-screen bg-[#0B1020] grid place-items-center text-red-400">{error}</div>;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-7xl mx-auto py-10 px-6 bg-[#1E2A44] text-white font-inter">
-      {/* sticky header */}
-      <header className="sticky top-0 z-20 bg-[#1E2A44]/95 backdrop-blur border-b border-[#2E7D7D]/30 py-4 px-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Billing & Payments</h1>
-          <div className="text-sm text-gray-300">Usage: {usage.count}/{usage.limit || '∞'} ({(usage.progress * 100).toFixed(0)}%)</div>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen bg-[#0B1020] text-gray-100 font-inter">
+      {/* Header */}
+      <header className="sticky top-0 z-20 bg-[#0B1020]/80 backdrop-blur border-b border-white/10 py-4 px-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">Billing & Payments</h1>
+          <div className="text-sm text-gray-400">Usage: {usage.count}/{usage.limit || '∞'} ({(usage.progress * 100).toFixed(0)}%)</div>
         </div>
       </header>
 
-      <h2 className="text-3xl font-bold mt-8 mb-2">Upgrade Your Plan</h2>
-      <p className="text-gray-400 mb-8">Pay with M-Pesa in one tap.</p>
+      <main className="max-w-7xl mx-auto p-6 grid gap-8">
+        {/* Plans */}
+        <section>
+          <h2 className="text-3xl font-bold mb-2">Upgrade Your Plan</h2>
+          <p className="text-gray-400 mb-8">Pay with M-Pesa in one tap.</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {plans.map((p) => (
+              <motion.div key={p.id} whileHover={{ scale: 1.02 }}>
+                <Card className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md cursor-pointer" onClick={() => { setSelectedPlan(p); setShowModal(true); }}>
+                  <CardHeader>
+                    <CardTitle className="text-xl text-white">{p.name}</CardTitle>
+                    <div className="text-3xl font-bold mt-2 text-cyan-400">{p.price === 0 ? 'Free' : formatKsh(p.price)}<span className="text-sm font-normal text-gray-400">/mo</span></div>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-2 text-sm text-gray-300">
+                      {p.features.map((f: any) => (
+                        <li key={f.name} className="flex items-center gap-2"><span className="text-cyan-400">•</span>{f.name}</li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </section>
 
-      {/* plans */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-        {plans.map((p) => (
-          <motion.div key={p.id} whileHover={{ scale: 1.02 }}>
-            <Card className="bg-[#2E7D7D]/10 border-0 shadow-lg rounded-xl p-6 cursor-pointer" onClick={() => { setSelectedPlan(p); setShowModal(true); }}>
-              <CardHeader>
-                <CardTitle className="text-xl">{p.name}</CardTitle>
-                <div className="text-3xl font-bold mt-2">{p.price === 0 ? 'Free' : formatKsh(p.price)}<span className="text-sm font-normal text-gray-400">/mo</span></div>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-sm text-gray-300">
-                  {p.features.map((f: string) => <li key={f} className="flex items-center gap-2"><span className="text-[#2E7D7D]">•</span>{f}</li>)}
-                </ul>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+        {/* Modal */}
+        {showModal && selectedPlan && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-[#0B1020] border border-white/10 rounded-2xl p-8 w-full max-w-md backdrop-blur-md">
+              <h3 className="text-xl font-bold text-white mb-2">Pay with M-Pesa</h3>
+              <p className="text-gray-400 mb-4">Enter your Safaricom number. We’ll send you a prompt.</p>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                type="tel"
+                placeholder="+254 7xx xxx xxx"
+                className="w-full mb-4 p-3 rounded-lg bg-white/5 text-white border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400"
+              />
+              <div className="flex gap-3">
+                <Button disabled={paying} onClick={handleMpesaPay} className="flex-1 bg-cyan-500 text-black hover:bg-cyan-400">{paying ? <Spinner /> : 'Send Prompt'}</Button>
+                <Button variant="outline" onClick={() => setShowModal(false)} className="text-cyan-400 border-cyan-400 hover:bg-cyan-400/10">Cancel</Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
 
-      {/* modal */}
-      {showModal && selectedPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
-          <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-[#1E2A44] rounded-xl p-8 w-full max-w-md border border-[#2E7D7D]/30">
-            <h3 className="text-xl font-bold mb-2">Pay with M-Pesa</h3>
-            <p className="text-gray-400 mb-4">Enter your Safaricom number. We’ll send you a prompt.</p>
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              type="tel"
-              placeholder="+254 7xx xxx xxx"
-              className="w-full mb-4 p-3 rounded-lg bg-[#2E7D7D]/10 text-white border border-[#2E7D7D]/30 focus:ring-2 focus:ring-[#2E7D7D] outline-none"
-            />
-            <div className="flex gap-3">
-              <Button disabled={paying} onClick={handleMpesaPay} className="flex-1 bg-[#2E7D7D] text-white">
-                {paying ? <Spinner /> : 'Send Prompt'}
-              </Button>
-              <Button variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      {/* invoices / history */}
-      <h3 className="text-xl font-bold mt-12 mb-4">Payment History</h3>
-      <Card className="bg-[#2E7D7D]/10 border-0">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="text-gray-300">Date</TableHead>
-                <TableHead className="text-gray-300">Amount</TableHead>
-                <TableHead className="text-gray-300">Receipt</TableHead>
-                <TableHead className="text-gray-300">Status</TableHead>
-                <TableHead className="text-gray-300">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices.map((inv) => (
-                <TableRow key={inv.id}>
-                  <TableCell>{new Date(inv.date).toLocaleDateString()}</TableCell>
-                  <TableCell>{formatKsh(inv.amount)}</TableCell>
-                  <TableCell>{inv.receipt || '-'}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded text-xs ${inv.status === 'PAID' ? 'bg-green-600' : inv.status === 'FAILED' ? 'bg-red-600' : 'bg-yellow-600'}`}>
-                      {inv.status}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="ghost" onClick={() => toast.info('PDF download coming soon')}><Download className="w-4" /></Button>
-                      {inv.status === 'FAILED' && <Button size="sm" variant="ghost" onClick={() => handleRetry(inv)}><RotateCcw className="w-4" /></Button>}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        {/* Payment History */}
+        <section>
+          <h3 className="text-xl font-bold mb-4">Payment History</h3>
+          <Card className="bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md">
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-gray-400">Date</TableHead>
+                    <TableHead className="text-gray-400">Amount</TableHead>
+                    <TableHead className="text-gray-400">Receipt</TableHead>
+                    <TableHead className="text-gray-400">Status</TableHead>
+                    <TableHead className="text-gray-400">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {invoices.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="text-white">{new Date(inv.date).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-white">{formatKsh(inv.amount)}</TableCell>
+                      <TableCell className="text-white">{inv.receipt || '-'}</TableCell>
+                      <TableCell>
+                        <span className={cn('px-2 py-1 rounded text-xs', inv.status === 'COMPLETED' ? 'bg-green-600 text-white' : inv.status === 'FAILED' ? 'bg-red-600 text-white' : 'bg-yellow-600 text-white')}>{inv.status}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="ghost" onClick={() => toast.info('PDF download coming soon')}><Download className="w-4" /></Button>
+                          {inv.status === 'FAILED' && <Button size="sm" variant="ghost" onClick={() => handleRetry(inv)}><RotateCcw className="w-4" /></Button>}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </section>
+      </main>
     </motion.div>
   );
 }

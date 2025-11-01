@@ -1,5 +1,5 @@
 // src/app/actions/plans.ts  (drop-in replacement)
-'use server';
+
 
 export type PlanFeature = {
   name: string;
