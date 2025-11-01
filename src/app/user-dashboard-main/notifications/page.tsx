@@ -101,106 +101,141 @@ export default function NotificationsPage() {
       </motion.div>
     );
 
+    /* ---------- safety guards ---------- */
+  const safeNotifications = Array.isArray(notifications) ? notifications : [];
+
   return (
     <ErrorBoundary>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-7xl mx-auto py-10 px-6 bg-[#1E2A44] text-white font-inter w-full">
-        {/* sticky header */}
-        <header className="sticky top-0 z-20 bg-[#1E2A44]/95 backdrop-blur-md border-b border-[#2E7D7D]/30 py-4 px-6">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <h1 className="text-2xl font-bold">Notifications</h1>
-            <div className="flex gap-2">
-              <Button onClick={markAll} className="bg-[#2E7D7D] text-white hover:bg-[#2E7D7D]/80">Mark all as read</Button>
-              <Button onClick={deleteAll} className="bg-red-600 text-white hover:bg-red-500">Delete all</Button>
-              <Button onClick={() => fetchNotifications()} className="bg-[#2E7D7D] text-white hover:bg-[#2E7D7D]/80">Refresh</Button>
-            </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="min-h-screen bg-[#0B1020] text-gray-100 font-inter"
+      >
+        {/* -------------- HEADER -------------- */}
+        <motion.header
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-[#0B1020]/80 backdrop-blur-xl border-b border-white/10"
+        >
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+            Notifications
+          </h1>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={markAll}
+              className="bg-cyan-500 text-black hover:bg-cyan-400"
+            >
+              Mark all as read
+            </Button>
+            <Button
+              onClick={deleteAll}
+              className="bg-red-600 text-white hover:bg-red-500"
+            >
+              Delete all
+            </Button>
+            <Button
+              onClick={fetchNotifications}
+              className="bg-white/10 text-white hover:bg-white/20"
+            >
+              Refresh
+            </Button>
           </div>
-        </header>
+        </motion.header>
 
-        <h1 className="text-3xl font-bold mb-6 mt-8">Notifications</h1>
-
-        {/* preferences card */}
-        <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }}>
-          <Card className="mb-8 bg-[#2E7D7D]/10 border-0 shadow-lg rounded-xl">
-            <CardHeader>
-              <CardTitle className="text-xl font-semibold text-[#2E7D7D]">Notification Preferences</CardTitle>
-              <p className="text-sm text-gray-400 mt-2">Choose which notifications you want to receive and how.</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {['Product Updates', 'Billing Alerts', 'Support Messages'].map((label) => (
-                  <div key={label} className="space-y-2">
-                    <label className="text-[#2E7D7D] font-medium">{label}</label>
-                    <select className="bg-[#2E7D7D]/20 text-white rounded-lg p-2 w-full border border-[#2E7D7D]/30 focus:ring-2 focus:ring-[#2E7D7D]">
-                      <option>Email</option><option>In-App</option><option>SMS</option>
-                    </select>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* all notifications */}
-        <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }}>
-          <Card className="bg-[#2E7D7D]/10 border-0 shadow-lg rounded-xl">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-xl font-semibold text-[#2E7D7D]">All Notifications</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {notifications.length === 0 ? (
-                <p className="text-gray-400">No notifications available.</p>
-              ) : (
-                <div className="space-y-4">
-                  {notifications.map((n) => (
-                    <motion.div
-                      key={n.id}
-                      className={`flex items-start p-4 rounded-lg ${n.status === "READ" ? "bg-[#2E7D7D]/5" : "bg-[#2E7D7D]/10"}`}
-                      whileHover={{ scale: 1.01 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <div className="flex-1">
-                        <p className="font-semibold text-white">{n.title}</p>
-                        <p className="text-gray-300">{n.message}</p>
-                        <p className="text-xs text-gray-500 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
-                      </div>
-                      {n.status !== "READ" && (
-                        <Button
-                          onClick={() => markOne(n.id)}
-                          className="ml-4 bg-[#2E7D7D] text-white hover:bg-[#2E7D7D]/80"
-                        >
-                          Mark as read
-                        </Button>
-                      )}
-                    </motion.div>
-                  ))}
+        {/* -------------- MAIN GRID -------------- */}
+        <main className="p-6 max-w-7xl mx-auto grid gap-8">
+          {/* 1️⃣  PREFERENCES  */}
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+          >
+            <h2 className="text-xl font-semibold text-cyan-400 mb-4">
+              Notification Preferences
+            </h2>
+            <p className="text-sm text-gray-400 mb-4">
+              Choose which notifications you want to receive and how.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {['Product Updates', 'Billing Alerts', 'Support Messages'].map((label) => (
+                <div key={label} className="space-y-2">
+                  <label className="text-cyan-300 font-medium">{label}</label>
+                  <select className="bg-white/5 border border-white/10 text-white rounded-lg p-2 w-full focus:outline-none focus:ring-2 focus:ring-cyan-400">
+                    <option>Email</option>
+                    <option>In-App</option>
+                    <option>SMS</option>
+                  </select>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
+              ))}
+            </div>
+          </motion.div>
 
-        {/* integrations placeholder */}
-        <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }}>
-          <Card className="mt-8 bg-[#2E7D7D]/10 border-0 shadow-lg rounded-xl">
-            <CardHeader><CardTitle className="text-xl font-semibold text-[#2E7D7D]">Integrations</CardTitle></CardHeader>
-            <CardContent>
-              <p className="text-gray-400 mb-2">Forward notifications to your favourite apps:</p>
-              <div className="flex gap-2">
-                {["Slack", "Teams", "Email"].map((app) => (
-                  <Button
-                    key={app}
-                    onClick={() => toast(`${app} integration coming soon!`)}
-                    className="bg-[#2E7D7D] text-white hover:bg-[#2E7D7D]/80"
+          {/* 2️⃣  NOTIFICATIONS  */}
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+          >
+            <h2 className="text-xl font-semibold text-cyan-400 mb-4">
+              All Notifications
+            </h2>
+            {safeNotifications.length === 0 ? (
+              <p className="text-gray-400">No notifications available.</p>
+            ) : (
+              <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                {safeNotifications.map((n) => (
+                  <motion.div
+                    key={n.id}
+                    whileHover={{ scale: 1.01 }}
+                    className={`flex items-start gap-4 p-4 rounded-lg border border-white/10 ${
+                      n.status === 'READ'
+                        ? 'bg-white/5'
+                        : 'bg-cyan-400/10 border-cyan-400/30'
+                    }`}
                   >
-                    Connect {app}
-                  </Button>
+                    <div className="flex-1">
+                      <p className="font-semibold text-white">{n.title}</p>
+                      <p className="text-gray-300 text-sm">{n.message}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(n.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                    {n.status !== 'READ' && (
+                      <Button
+                        onClick={() => markOne(n.id)}
+                        className="bg-cyan-500 text-black hover:bg-cyan-400 text-xs px-3 py-1"
+                      >
+                        Mark as read
+                      </Button>
+                    )}
+                  </motion.div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            )}
+          </motion.div>
 
-        <Toaster position="top-right" />
+          {/* 3️⃣  INTEGRATIONS  */}
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+          >
+            <h2 className="text-xl font-semibold text-cyan-400 mb-4">
+              Integrations
+            </h2>
+            <p className="text-sm text-gray-400 mb-4">
+              Forward notifications to your favourite apps:
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {['Slack', 'Teams', 'Email'].map((app) => (
+                <Button
+                  key={app}
+                  onClick={() => toast(`${app} integration coming soon!`)}
+                  className="bg-white/10 text-white hover:bg-white/20"
+                >
+                  Connect {app}
+                </Button>
+              ))}
+            </div>
+          </motion.div>
+        </main>
       </motion.div>
     </ErrorBoundary>
   );
