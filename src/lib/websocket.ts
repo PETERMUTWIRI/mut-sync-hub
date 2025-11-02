@@ -2,13 +2,25 @@ import { io, Socket } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
 
 let socket: Socket | null = null;
+let orgIdCache: string | null = null;
+
+/** Fetch orgId once from your existing /api/org-profile */
+async function getOrgId(): Promise<string> {
+  if (orgIdCache) return orgIdCache;
+  const res = await fetch('/api/org-profile');
+  if (!res.ok) throw new Error('Not authenticated');
+  const data = await res.json();
+  orgIdCache = data.orgId; // ← from your org-profile API
+  if (!orgIdCache) throw new Error('Organization ID not found');
+  return orgIdCache;
+}
 
 function getSocket(): Socket {
   if (!socket) {
     socket = io('https://mutsynchub.onrender.com', {
       path: '/socket.io',
       transports: ['polling', 'websocket'],
-      query: { orgId: '' }, // filled by connect()
+      query: async () => ({ orgId: await getOrgId() }), // ← dynamic orgId
       extraHeaders: { 'x-api-key': 'dev-analytics-key-123' },
     });
 
@@ -47,5 +59,6 @@ export const DataGateway = {
     if (orgId) socket.emit('leave-org', orgId);
     socket.disconnect();
     socket = null;
+    orgIdCache = null;
   },
 } as const;
