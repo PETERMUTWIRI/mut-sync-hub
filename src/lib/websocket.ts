@@ -18,10 +18,10 @@ async function getOrgId(): Promise<string> {
 function getSocket(): Socket {
   if (!socket) {
     socket = io('https://mutsynchub.onrender.com', {
-      path: '/socket.io',
-      transports: ['polling', 'websocket'],
-      query: async () => ({ orgId: await getOrgId() }), // ← dynamic orgId
-      extraHeaders: { 'x-api-key': 'dev-analytics-key-123' },
+    path: '/socket.io',
+    transports: ['polling', 'websocket'],
+    query: async () => ({ orgId: await getOrgId() }),
+    extraHeaders: { 'x-api-key': 'dev-analytics-key-123' },
     });
 
     socket.on('notification:new', (notif) => {
