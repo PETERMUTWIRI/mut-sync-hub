@@ -4,24 +4,25 @@ import { toast } from 'react-hot-toast';
 let socket: Socket | null = null;
 let orgIdCache: string | null = null;
 
-/** Fetch orgId once from your existing /api/org-profile */
 async function getOrgId(): Promise<string> {
   if (orgIdCache) return orgIdCache;
   const res = await fetch('/api/org-profile');
   if (!res.ok) throw new Error('Not authenticated');
   const data = await res.json();
-  orgIdCache = data.orgId; // ← from your org-profile API
+  orgIdCache = data.orgId;
   if (!orgIdCache) throw new Error('Organization ID not found');
   return orgIdCache;
 }
 
 function getSocket(): Socket {
   if (!socket) {
-    socket = io('https://mutsynchub.onrender.com', {
-    path: '/socket.io',
-    transports: ['polling', 'websocket'],
-    query: async () => ({ orgId: await getOrgId() }),
-    extraHeaders: { 'x-api-key': 'dev-analytics-key-123' },
+    // 1. empty origin  →  uses same host (your Vercel domain)
+    // 2. path matches the file we deploy at /socket.io
+    socket = io('', {
+      path: '/socket.io',
+      transports: ['polling', 'websocket'],
+      query: async () => ({ orgId: await getOrgId() }),
+      // browsers ignore extraHeaders; key is added by the proxy
     });
 
     socket.on('notification:new', (notif) => {
