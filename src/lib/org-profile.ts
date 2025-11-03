@@ -1,14 +1,52 @@
-import { NextRequest } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { stackServerApp } from '@/lib/stack';
+import { Prisma } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
 
+export async function getOrgProfileInternal() {
+  const user = await stackServerApp.getUser({ or: 'throw', tokenStore: 'nextjs-cookie' });
 
-const INTERNAL_BASE = `https://${process.env.VERCEL_URL}` || 'http://localhost:3000';
-
-export async function getOrgProfileInternal(req: NextRequest) {
-  /* reuse the SAME user id that /api/org-profile already resolved */
-  const res = await fetch(`${INTERNAL_BASE}/api/org-profile`, {
-    headers: { cookie: req.headers.get('cookie')! },
+  let profile = await prisma.userProfile.findUnique({
+    where: { userId: user.id },
+    include: { organization: true },
   });
-  if (!res.ok) throw new Error('Org fetch failed');
-  const json = await res.json();          // { userId, orgId, role, plan, ... }
-  return { userId: json.userId, orgId: json.orgId, role: json.role, plan: json.plan };
+
+  if (!profile) {
+    let org = await prisma.organization.findFirst({});
+    if (!org) {
+      org = await prisma.organization.create({
+        data: {
+          id: uuidv4(),
+          name: `Org-${user.id.slice(0, 8)}`,
+          subdomain: `org-${user.id.slice(0, 8)}-${Date.now()}`,
+          planId: '088c6a32-7840-4188-bc1a-bdc0c6bee723',
+        },
+      });
+    }
+    profile = await prisma.userProfile.create({
+      data: {
+        id: uuidv4(),
+        userId: user.id,
+        orgId: org.id,
+        role: 'USER',
+        email: user.primaryEmail,
+        firstName: user.displayName?.split(' ')[0] ?? null,
+        lastName: user.displayName?.split(' ').slice(1).join(' ') ?? null,
+        isTechnical: false,
+        layoutMode: 'beginner',
+        dashboardLayout: Prisma.DbNull,
+        status: 'ACTIVE',
+        mfaEnabled: false,
+        failedLoginAttempts: 0,
+      },
+      include: { organization: true },
+    });
+  }
+
+  return {
+    userId: user.id,
+    orgId: profile.orgId,
+    role: profile.role,
+    plan: profile.organization.planId,
+  };
 }

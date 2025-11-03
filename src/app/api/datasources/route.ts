@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   try {
     console.log('[datasource] ➜  incoming upload');
 
-    const { orgId } = await getOrgProfileInternal(req);
+    const { orgId } = await getOrgProfileInternal();
     console.log('[datasource] ➜  orgId', orgId);
 
     const incomingForm = await req.formData();
