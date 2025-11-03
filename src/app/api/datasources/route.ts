@@ -3,12 +3,12 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';
+import crypto from 'crypto';
 
-/* ----------  LAZY env check – only when route is actually hit  ---------- */
 function getAnalyticsCredentials() {
   const url = process.env.ANALYTICS_INTERNAL_URL;
   const key = process.env.ANALYTICS_API_KEY;
-  if (!url || !key) throw new Error('Missing analytics env vars (ANALYTICS_INTERNAL_URL or ANALYTICS_API_KEY)');
+  if (!url || !key) throw new Error('Missing analytics env vars');
   return { url, key };
 }
 
@@ -29,18 +29,28 @@ export async function POST(req: NextRequest) {
     target.searchParams.set('orgId', orgId);
     target.searchParams.set('sourceId', crypto.randomUUID());
     target.searchParams.set('type', type);
-    console.log('[datasource] ➜  relaying to', target.toString());
 
-    const outgoingForm = new FormData();
-    for (const [k, v] of incomingForm.entries()) {
-      outgoingForm.append(k, v);
+    /* ----------  decide body & headers  ---------- */
+    const isFile = type === 'FILE_IMPORT';
+    let body: BodyInit;
+    const headers: Record<string, string> = { 'x-api-key': key };
+
+    if (isFile) {
+      // real file → multipart
+      const outgoingForm = new FormData();
+      for (const [k, v] of incomingForm.entries()) outgoingForm.append(k, v);
+      body = outgoingForm;
+    } else {
+      // JSON payload → send config + data
+      headers['content-type'] = 'application/json';
+      const config = incomingForm.get('config') ?? '{}';
+      const data   = incomingForm.get('data')   ?? '[]';
+      body = JSON.stringify({ config, data });
     }
 
-    const engineRes = await fetch(target, {
-      method: 'POST',
-      headers: { 'x-api-key': key },
-      body: outgoingForm,
-    });
+    console.log('[datasource] ➜  relaying to', target.toString());
+
+    const engineRes = await fetch(target, { method: 'POST', headers, body });
 
     console.log('[datasource] ➜  engine status', engineRes.status);
     if (!engineRes.ok) {
