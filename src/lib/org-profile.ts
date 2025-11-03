@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 
 
-const INTERNAL_BASE = process.env.NEXT_INTERNAL_ANALYTICS_URL || 'http://localhost:3000';
+const INTERNAL_BASE = process.env.VERCEL_URL || 'http://localhost:3000';
 
 export async function getOrgProfileInternal(req: NextRequest) {
   /* reuse the SAME user id that /api/org-profile already resolved */
