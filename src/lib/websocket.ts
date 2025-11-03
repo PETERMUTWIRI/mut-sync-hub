@@ -1,28 +1,15 @@
+// src/lib/websocket.ts
 import { io, Socket } from 'socket.io-client';
 import { toast } from 'react-hot-toast';
 
 let socket: Socket | null = null;
-let orgIdCache: string | null = null;
-
-async function getOrgId(): Promise<string> {
-  if (orgIdCache) return orgIdCache;
-  const res = await fetch('/api/org-profile');
-  if (!res.ok) throw new Error('Not authenticated');
-  const data = await res.json();
-  orgIdCache = data.orgId;
-  if (!orgIdCache) throw new Error('Organization ID not found');
-  return orgIdCache;
-}
 
 function getSocket(): Socket {
   if (!socket) {
-    // 1. empty origin  →  uses same host (your Vercel domain)
-    // 2. path matches the file we deploy at /socket.io
-    socket = io('', {
+    socket = io('https://mutsynchub.onrender.com', {   // ← direct to Render
       path: '/socket.io',
       transports: ['polling', 'websocket'],
-      query: async () => ({ orgId: await getOrgId() }),
-      // browsers ignore extraHeaders; key is added by the proxy
+      // no orgId in query – Render fetches it once from Vercel
     });
 
     socket.on('notification:new', (notif) => {
@@ -60,6 +47,5 @@ export const DataGateway = {
     if (orgId) socket.emit('leave-org', orgId);
     socket.disconnect();
     socket = null;
-    orgIdCache = null;
   },
 } as const;
