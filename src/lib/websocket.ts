@@ -6,7 +6,7 @@ let socket: Socket | null = null;
 
 function getSocket(): Socket {
   if (!socket) {
-    socket = io('https://mutsynchub.onrender.com', {   // ← direct to Render
+    socket = io('https://mutsynchub.onrender.com',{
       path: '/socket.io',
       transports: ['polling', 'websocket'],
       // no orgId in query – Render fetches it once from Vercel
