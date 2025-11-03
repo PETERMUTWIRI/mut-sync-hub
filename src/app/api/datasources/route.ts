@@ -41,11 +41,10 @@ export async function POST(req: NextRequest) {
       for (const [k, v] of incomingForm.entries()) outgoingForm.append(k, v);
       body = outgoingForm;
     } else {
-      // JSON payload → send config + data
-      headers['content-type'] = 'application/json';
-      const config = incomingForm.get('config') ?? '{}';
-      const data   = incomingForm.get('data')   ?? '[]';
-      body = JSON.stringify({ config, data });
+       headers['content-type'] = 'application/json';
+      const config = JSON.parse((incomingForm.get('config') as string) ?? '{}');
+      const data   = JSON.parse((incomingForm.get('data') as string) ?? '[]');
+      body = JSON.stringify({ config, data });   // ← two root keys
     }
 
     console.log('[datasource] ➜  relaying to', target.toString());
