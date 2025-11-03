@@ -43,7 +43,9 @@ export default function DataSourcesPage() {
         fd.append("type", "POS_SYSTEM"); // ✅ Prisma enum value
         fd.append("name", "Auto-created POS source");
         fd.append("provider", "pos");
-        fd.append("config", JSON.stringify({ provider: "pos" }));
+        /* ➜  FIX: always send config + data  */
+        fd.append('config', JSON.stringify({ provider: 'pos', endpoint: '/pos/transaction' }));
+        fd.append('data', JSON.stringify([])); // empty array is allowed
 
         const info = await createDataSource(u.orgId, "POS_SYSTEM", fd);
         setSource(info);
