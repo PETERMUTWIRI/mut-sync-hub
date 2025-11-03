@@ -10,7 +10,7 @@ const ANALYTICS_KEY = process.env.ANALYTICS_KEY ?? 'dev-analytics-key-123';
 export async function POST(req: NextRequest) {
   try {
     /* 1. auth ---------------------------------------------------------- */
-    const { orgId } = await getOrgProfileInternal(req); // ← pass full request
+    const { orgId } = await getOrgProfileInternal(); // ← pass full request
 
     /* 3. forward to Python container ---------------------------------- */
     const body = await req.json();

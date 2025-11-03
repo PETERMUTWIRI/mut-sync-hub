@@ -14,7 +14,7 @@ interface AnalyticReport {
 
 export async function POST(req: NextRequest) {
   const { orgId, type, results, lastRun, schedule } = (await req.json()) as AnalyticReport;
-  await getOrgProfileInternal(req); // auth
+  await getOrgProfileInternal(); // auth
 
   const report = await prisma.analyticsReport.upsert({
     where: { id: `${orgId}-${type}` },

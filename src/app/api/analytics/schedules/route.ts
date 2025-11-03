@@ -13,7 +13,7 @@ const ANALYTICS_KEY = process.env.ANALYTICS_KEY ?? process.env.ANALYTICS_API_KEY
 /* ------------------ GET /api/analytics/schedules?orgId=xxx ------------------ */
 export async function GET(req: NextRequest) {
   try {
-    const { orgId } = await getOrgProfileInternal(req); // ✅ pass full request
+    const { orgId } = await getOrgProfileInternal(); // ✅ pass full request
     const res = await fetch(`${ANALYTICS_URL}/schedules?orgId=${orgId}`, {
       headers: { 'x-api-key': ANALYTICS_KEY },
     });
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 /* ------------------ POST /api/analytics/schedules --------------------------- */
 export async function POST(req: NextRequest) {
   try {
-    const { orgId } = await getOrgProfileInternal(req); // ✅ pass full request
+    const { orgId } = await getOrgProfileInternal(); // ✅ pass full request
     const body      = await req.json();
     const res = await fetch(`${ANALYTICS_URL}/schedules`, {
       method : 'POST',

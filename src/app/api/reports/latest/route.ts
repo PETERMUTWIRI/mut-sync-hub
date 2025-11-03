@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const orgId = searchParams.get("orgId")!;
   const wantPDF = searchParams.get("format") === "pdf";
 
-  await getOrgProfileInternal(req); // auth
+  await getOrgProfileInternal(); // auth
 
   const report = await prisma.analyticsReport.findFirst({
     where: { orgId },
