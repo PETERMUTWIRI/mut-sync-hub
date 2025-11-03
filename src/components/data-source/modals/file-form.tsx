@@ -32,6 +32,7 @@ export function FileForm({ onSuccess }: { onSuccess: () => void }) {
       // Build FormData
       const formData = new FormData();
       formData.append('type', 'FILE_IMPORT');
+      formData.append('config', JSON.stringify({}));   
       formData.append('name', name);
       formData.append('provider', provider);
 
