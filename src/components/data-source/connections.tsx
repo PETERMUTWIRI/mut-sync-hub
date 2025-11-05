@@ -13,17 +13,26 @@ export function ConnectionCards({ onAdd }: { onAdd: (t: string, cfg: any) => voi
   const router = useRouter();
 
   async function handleAdd(type: string, defaultCfg: any) {
-    const fd = new FormData();
-    fd.append("type", type);
-    fd.append("name", `${type} source`);
-    fd.append("provider", type.toLowerCase());
-    fd.append("config", JSON.stringify(defaultCfg));
-    fd.append("data", JSON.stringify([]));
+  const fd = new FormData();
+  fd.append("type", type);
+  fd.append("name", `${type} source`);
+  fd.append("provider", type.toLowerCase());
+  fd.append("config", JSON.stringify(defaultCfg));
+  fd.append("data", JSON.stringify([]));
 
-    const res = await fetch("/api/datasources", { method: "POST", body: fd });
-    if (!res.ok) return alert(await res.text());
-    router.refresh();
+  const res = await fetch("/api/datasources", { method: "POST", body: fd });
+  if (!res.ok) return alert(await res.text());
+
+  /*  ➜  grab the id we just got back  */
+  const created = await res.json();
+  const id = created.id || created.connectionId;
+  if (id) {
+    /*  ➜  wake n8n  */
+    await fetch(`/api/datasources/${id}/trigger`, { method: "POST" });
   }
+
+  router.refresh();
+}
 
   return (
     <>

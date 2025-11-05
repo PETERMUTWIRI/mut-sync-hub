@@ -3,68 +3,54 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';
+import { getAnalyticsCredentials } from '@/lib/analytics-credentials';
 import crypto from 'crypto';
 
-function getAnalyticsCredentials() {
-  const url = process.env.ANALYTICS_INTERNAL_URL;
-  const key = process.env.ANALYTICS_API_KEY;
-  if (!url || !key) throw new Error('Missing analytics env vars');
-  return { url, key };
-}
+// use shared helper from lib
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('[datasource] ➜  incoming upload');
+    console.log('[datasource] ➜ incoming upload');
 
     const { orgId } = await getOrgProfileInternal();
-    console.log('[datasource] ➜  orgId', orgId);
-
+    const { url, key } = getAnalyticsCredentials(); // now points to n8n base
     const incomingForm = await req.formData();
     const type = incomingForm.get('type') as string;
     if (!type) return NextResponse.json({ error: 'type required' }, { status: 400 });
-    console.log('[datasource] ➜  type', type);
 
-    const { url, key } = getAnalyticsCredentials();
-    const target = new URL(`${url}/api/v1/datasources`);
-    target.searchParams.set('orgId', orgId);
-    target.searchParams.set('sourceId', crypto.randomUUID());
-    target.searchParams.set('type', type);
+    // --- Build webhook URL for n8n ---
+    const target = new URL(`${url}/webhook/${orgId}`); // ✅ points to your n8n webhook
 
-    /* ----------  decide body & headers  ---------- */
-    const isFile = type === 'FILE_IMPORT';
-    let body: BodyInit;
-    const headers: Record<string, string> = { 'x-api-key': key };
+    console.log('[datasource] ➜ relaying to n8n', target.toString());
 
-    if (isFile) {
-      // real file → multipart
-      const outgoingForm = new FormData();
-      for (const [k, v] of incomingForm.entries()) outgoingForm.append(k, v);
-      body = outgoingForm;
-    } else {
-      const cfg = (incomingForm.get('config') as string | null) ?? '{}';
-      const dat = (incomingForm.get('data') as string | null)   ?? '[]';
-      body = JSON.stringify({
-       config: JSON.parse(cfg),
-       data:   JSON.parse(dat),
-      });
-    }
+    const body: Record<string, FormDataEntryValue> = {};
+    for (const [k, v] of incomingForm.entries()) body[k] = v;
 
-    console.log('[datasource] ➜  relaying to', target.toString());
+    const headers = { 'x-api-key': key, 'Content-Type': 'application/json' };
 
-    const engineRes = await fetch(target, { method: 'POST', headers, body });
+    const rowsRaw = body.data ? (body.data as string) : '[]';
+    let rows: any[];
+    try { rows = JSON.parse(rowsRaw); }
+    catch { rows = []; }
 
-    console.log('[datasource] ➜  engine status', engineRes.status);
+    const engineRes = await fetch(target, {
+      method : 'POST',
+      headers,
+      body   : JSON.stringify({ orgId, rows }),
+    });
+
+    console.log('[datasource] ➜ n8n status', engineRes.status);
     if (!engineRes.ok) {
       const text = await engineRes.text();
-      console.error('[datasource] ➜  engine error', text);
-      return NextResponse.json({ error: `engine: ${text}` }, { status: engineRes.status });
+      console.error('[datasource] ➜ n8n error', text);
+      return NextResponse.json({ error: `n8n: ${text}` }, { status: engineRes.status });
     }
 
     const data = await engineRes.json();
-    console.log('[datasource] ➜  engine reply', data);
+    console.log('[datasource] ➜ n8n reply', data);
     return NextResponse.json(data);
   } catch (e: any) {
-    console.error('[datasource] ➜  crash', e);
+    console.error('[datasource] ➜ crash', e);
     return NextResponse.json({ error: e.message || 'relay failed' }, { status: 500 });
   }
 }
