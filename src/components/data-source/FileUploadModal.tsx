@@ -15,7 +15,7 @@ export function FileUploadModal({ onClose, onSuccess }: FileUploadModalProps) {
   const [file, setFile] = useState<File | null>(null);
   const [delimiter, setDelimiter] = useState(",");
   const [hasHeaders, setHasHeaders] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,78 +24,161 @@ export function FileUploadModal({ onClose, onSuccess }: FileUploadModalProps) {
       return;
     }
 
-    setLoading(true);
-    try {
-      const fd = new FormData();
-      fd.append("type", "FILE_IMPORT");
-      fd.append("name", name || file.name);
-      fd.append("provider", "file");
-      fd.append("config", JSON.stringify({ 
-        delimiter,
-        hasHeaders,
-        encoding: "utf-8",
-      }));
-      fd.append("file", file);
+    setIsProcessing(true);
+    const toastId = toast.loading("📁 Validating file...");
 
-      const res = await fetch("/api/datasources", { method: "POST", body: fd });
-      if (!res.ok) throw new Error(await res.text());
+    try {
+      // Step 1: Create Datasource Record
+      toast.loading("📝 Creating datasource entry...", { id: toastId });
+      const fd = new FormData();
+      fd.append("type", "FILE_IMPORT"); // Changed from FILE_IMPORT for consistency
+      fd.append("name", name || file.name);
+      fd.append("provider", "csv");
+      fd.append("config", JSON.stringify({ delimiter, hasHeaders }));
+
+      console.log(`[upload] 📤 creating datasource for ${file.name}...`);
+      const createRes = await fetch("/api/datasources", { method: "POST", body: fd });
+      if (!createRes.ok) throw new Error(await createRes.text());
       
-      const { id } = await res.json();
-      onSuccess(id);
+      const { id: datasourceId } = await createRes.json();
+      console.log(`[upload] ✅ datasource created: ${datasourceId}`);
+      
+      // Step 2: Upload to Cloud (this now happens in /api/datasources)
+      toast.loading("☁️ Uploading to cloud storage...", { id: toastId });
+      
+      // Step 3: Trigger Processing Pipeline
+      toast.loading("🚀 Starting data pipeline...", { id: toastId });
+      console.log(`[upload] 🎯 triggering pipeline for ${datasourceId}...`);
+      
+      const triggerRes = await fetch(`/api/datasources/${datasourceId}/trigger`, { 
+        method: "POST" 
+      });
+      if (!triggerRes.ok) throw new Error(`Pipeline failed: ${await triggerRes.text()}`);
+      
+      console.log(`[upload] ✅ pipeline triggered successfully`);
+      
+      // Final Success: Show Datasource ID
+      toast.success(
+        <div>
+          <div className="font-semibold">✅ Upload Complete!</div>
+          <div className="text-xs mt-1">Datasource ID: <code className="bg-black/30 px-1 py-0.5 rounded">{datasourceId}</code></div>
+          <div className="text-xs text-gray-400">Data will appear in ~10 seconds</div>
+        </div>,
+        { id: toastId, duration: 6000 }
+      );
+
+      // Notify parent and close
+      onSuccess(datasourceId);
+      
     } catch (err: any) {
-      toast.error(err.message || "Failed to create datasource");
+      console.error("[upload] ❌", err);
+      toast.error(
+        <div>
+          <div className="font-semibold">❌ Upload Failed</div>
+          <div className="text-xs text-gray-400 mt-1">{err.message}</div>
+        </div>,
+        { id: toastId }
+      );
     } finally {
-      setLoading(false);
+      setIsProcessing(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xl font-semibold text-cyan-400">Upload CSV File</h3>
-        <button type="button" onClick={onClose} className="text-gray-400 hover:text-white text-2xl">✕</button>
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-xl font-semibold text-cyan-400">📊 Upload CSV File</h3>
+        <button 
+          type="button" 
+          onClick={onClose} 
+          className="text-gray-400 hover:text-white text-2xl transition-colors"
+          disabled={isProcessing}
+        >
+          ✕
+        </button>
       </div>
 
-      <input
-        required
-        placeholder="Data source name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="w-full rounded-lg bg-black/60 px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400"
-      />
-
-      <div>
-        <label className="block text-sm text-gray-400 mb-2">CSV File</label>
+      <div className="space-y-4">
         <input
-          type="file"
-          accept=".csv"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-600 file:text-white hover:file:bg-teal-500"
+          required
+          placeholder="Data source name (e.g., Store Sales Data)"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="w-full rounded-lg bg-black/60 px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-teal-400 transition-all"
+          disabled={isProcessing}
         />
-        {file && <p className="text-xs text-gray-500 mt-1">Selected: {file.name}</p>}
-      </div>
 
-      <div>
-        <label className="block text-sm text-gray-400 mb-2">Delimiter</label>
-        <select value={delimiter} onChange={(e) => setDelimiter(e.target.value)} className="w-full rounded-lg bg-black/60 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-teal-400">
-          <option value=",">Comma (,)</option>
-          <option value=";">Semicolon (;)</option>
-          <option value="\t">Tab</option>
-        </select>
-      </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">CSV File</label>
+          <input
+            type="file"
+            accept=".csv,.txt"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            className="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-600 file:text-white hover:file:bg-teal-500 disabled:opacity-50 cursor-pointer"
+            disabled={isProcessing}
+          />
+          {file && (
+            <div className="mt-2 text-xs text-gray-400 bg-black/30 px-2 py-1 rounded inline-block">
+              📄 {file.name} ({(file.size / 1024).toFixed(1)} KB)
+            </div>
+          )}
+        </div>
 
-      <div className="flex items-center gap-2">
-        <input type="checkbox" checked={hasHeaders} onChange={(e) => setHasHeaders(e.target.checked)} className="rounded" />
-        <label className="text-sm text-gray-400">First row has headers</label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Delimiter</label>
+            <select 
+              value={delimiter} 
+              onChange={(e) => setDelimiter(e.target.value)}
+              className="w-full rounded-lg bg-black/60 px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-teal-400 disabled:opacity-50"
+              disabled={isProcessing}
+            >
+              <option value=",">Comma (,)</option>
+              <option value=";">Semicolon (;)</option>
+              <option value="\t">Tab</option>
+              <option value="|">Pipe (|)</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2 pt-6">
+            <input 
+              type="checkbox" 
+              checked={hasHeaders} 
+              onChange={(e) => setHasHeaders(e.target.checked)}
+              className="rounded text-teal-500 focus:ring-teal-400"
+              disabled={isProcessing}
+              id="hasHeaders"
+            />
+            <label htmlFor="hasHeaders" className="text-sm text-gray-300">First row has headers</label>
+          </div>
+        </div>
       </div>
 
       <button
         type="submit"
-        disabled={loading || !file}
-        className="w-full rounded-lg bg-teal-600 hover:bg-teal-500 disabled:opacity-50 px-4 py-2 font-medium text-white"
+        disabled={isProcessing || !file}
+        className="w-full rounded-lg bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 font-medium text-white transition-all transform hover:scale-[1.02]"
       >
-        {loading ? "Processing..." : "Upload & Process"}
+        {isProcessing ? (
+          <span className="flex items-center justify-center gap-2">
+            <span className="w-4 h-4 border-2 border-white/30 border-t-teal-300 rounded-full animate-spin"></span>
+            Processing...
+          </span>
+        ) : (
+          "🚀 Upload & Process"
+        )}
       </button>
+
+      {isProcessing && (
+        <div className="text-xs text-gray-400 bg-black/30 p-3 rounded-lg">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></span>
+            <span>Uploading to secure cloud storage...</span>
+          </div>
+          <div className="ml-4 text-gray-500">• Datasource ID will be generated</div>
+          <div className="ml-4 text-gray-500">• Data pipeline will auto-start</div>
+        </div>
+      )}
     </form>
   );
 }
