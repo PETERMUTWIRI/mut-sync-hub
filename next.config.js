@@ -5,6 +5,7 @@ const LightningCSS = require('lightningcss');
 const nextConfig = {
   reactStrictMode: true,
   experimental: { optimizeCss: false },
+  turbo: false, 
   webpack(config) {
     // replace cssnano-simple with lightningcss
     config.optimization.minimizer.push(

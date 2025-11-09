@@ -8,7 +8,7 @@
   },
   "scripts": {
    "dev":  "npx tailwindcss -i ./src/app/global.css -o ./src/app/tailwind-output.css --watch & next dev",
-   "build": "npx tailwindcss -i ./src/app/global.css -o ./src/app/tailwind-output.css && next build",
+   "build": "NEXT_TURBO=false npx tailwindcss -i ./src/app/global.css -o ./src/app/tailwind-output.css && next build",
    "start": "next start",
    "lint": "next lint",
    "test": "jest",

@@ -1,28 +1,31 @@
+// app/connections/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ConnectionCards } from "@/components/data-source/connections";
-import { PosCard } from "@/components/data-source/pos-card";
+import { FileUploadModal } from "@/components/data-source/FileUploadModal";
+import { ApiModal } from "@/components/data-source/ApiModal";
+import { DatabaseModal } from "@/components/data-source/DatabaseModal";
+import { PosModal } from "@/components/data-source/PosModal";
 import { TransferHistory } from "@/components/data-source/history";
 import { LiveIndicator } from "@/components/data-source/live-indicator";
 import { io, Socket } from "socket.io-client";
 
-/* ----------  helpers  ---------- */
 async function getOrgProfile() {
   const res = await fetch("/api/org-profile");
   if (!res.ok) throw new Error("Unauthorized");
   return res.json() as Promise<{ orgId: string }>;
 }
 
-/* ----------  main page  ---------- */
 export default function DataSourcesPage() {
   const router = useRouter();
   const [socket, setSocket] = useState<Socket | null>(null);
   const [live, setLive] = useState(false);
   const [orgId, setOrgId] = useState("");
   const [recentRows, setRecentRows] = useState<any[]>([]);
+  const [openModal, setOpenModal] = useState<string | null>(null);
 
   useEffect(() => {
     getOrgProfile()
@@ -36,61 +39,22 @@ export default function DataSourcesPage() {
     });
     s.on("connect", () => setLive(true));
     s.on("disconnect", () => setLive(false));
-    // live rows broadcast from Render
     s.on("datasource:new-rows", (payload) => {
       console.log("[ui] live rows", payload.rows);
       setRecentRows(payload.rows);
     });
     setSocket(s);
-    return () => {
-      s.close();
-    };
+    return () => s.close();
   }, [orgId]);
 
-  /* ---------- stubs (replace with real data later) ---------- */
-  const usagePercent = 72;
-  const monthSpend = 128_500;
-  const sparkPoints = "0,40 20,25 40,30 60,15 80,20 100,10";
-  const avgQuery = 123;
-  const scheduleHealth = Array(20).fill(true);
-  const unread = 3;
-  const anomalies = 7;
-  const confidence = 91;
-  const insight = "Your nightly jobs run 30 % faster on weekdays—consider scaling down on weekends.";
+  // Modal submission handlers (modals will call these)
+  const handleModalSuccess = (datasourceId: string) => {
+    setOpenModal(null);
+    // Trigger processing
+    fetch(`/api/datasources/${datasourceId}/trigger`, { method: "POST" });
+    router.refresh();
+  };
 
-  async function handleCreate(t: any, cfg: any): Promise<void> {
-    try {
-      const token = document.cookie.match(/stack-session=([^;]+)/)?.[1] || "";
-      const res = await fetch("/api/connections", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ type: t, config: cfg, orgId }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text().catch(() => "");
-        throw new Error(errText || "Failed to create connection");
-      }
-
-      const data = await res.json().catch(() => ({}));
-      const id = data?.id || data?.connectionId;
-
-      // If backend returned an id, navigate to the connection page; otherwise refresh current route.
-      if (id) {
-        router.push(`/connections/${id}`);
-      } else {
-        // refresh to show new connection in any listing on this page
-        router.refresh();
-      }
-    } catch (err) {
-      console.error("[handleCreate] error creating connection:", err);
-      // minimal user feedback
-      alert("Unable to create connection. See console for details.");
-    }
-  }
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -115,15 +79,61 @@ export default function DataSourcesPage() {
       </motion.header>
 
       <main className="p-6 max-w-7xl mx-auto grid gap-8">
-        {/* 1️⃣  CONNECTION CARDS  */}
+        {/* 1️⃣  CONNECTION CARDS - NOW JUST MODAL TRIGGERS */}
         <motion.div whileHover={{ scale: 1.01 }} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
           <h2 className="text-xl font-semibold text-cyan-400 mb-4">Add a Connection</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <ConnectionCards onAdd={(t: string, cfg: Record<string, unknown>) => handleCreate(t, cfg)} />
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <ConnectionCards onOpenModal={setOpenModal} />
+          </div>
         </motion.div>
 
-        {/* 2️⃣  LIVE ROWS  */}
+        {/* 2️⃣  MODALS (CONDITIONALLY RENDERED) */}
+        <AnimatePresence>
+          {openModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+              onClick={() => setOpenModal(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                className="bg-[#1A1F2E] rounded-2xl p-6 max-w-2xl w-full mx-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {openModal === "FILE_IMPORT" && (
+                  <FileUploadModal 
+                    onClose={() => setOpenModal(null)} 
+                    onSuccess={handleModalSuccess}
+                  />
+                )}
+                {openModal === "POS_SYSTEM" && (
+                  <PosModal 
+                    onClose={() => setOpenModal(null)} 
+                    onSuccess={handleModalSuccess}
+                  />
+                )}
+                {openModal === "API" && (
+                  <ApiModal 
+                    onClose={() => setOpenModal(null)} 
+                    onSuccess={handleModalSuccess}
+                  />
+                )}
+                {openModal === "DATABASE" && (
+                  <DatabaseModal 
+                    onClose={() => setOpenModal(null)} 
+                    onSuccess={handleModalSuccess}
+                  />
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 3️⃣  LIVE ROWS  */}
         {recentRows.length > 0 && (
           <motion.div whileHover={{ scale: 1.01 }} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
             <h3 className="text-lg font-medium text-white mb-2">Live Sample</h3>
@@ -133,12 +143,7 @@ export default function DataSourcesPage() {
           </motion.div>
         )}
 
-        {/* 3️⃣  POS DETAILS CARD  */}
-        <motion.div whileHover={{ scale: 1.01 }} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
-          <PosCard />
-        </motion.div>
-
-        {/* 4️⃣  REAL-TIME ACTIVITY  */}
+        {/* 4️⃣  TRANSFER HISTORY  */}
         <motion.div whileHover={{ scale: 1.01 }} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-cyan-400">Real-time Activity</h2>

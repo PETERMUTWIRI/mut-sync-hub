@@ -1,56 +1,70 @@
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getOrgProfileInternal } from '@/lib/org-profile';
-import { getAnalyticsCredentials } from '@/lib/analytics-credentials';
-import crypto from 'crypto';
-
-// use shared helper from lib
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import type { DataSourceType } from "@prisma/client";
+import { getOrgProfileInternal } from "@/lib/org-profile";
+import { v4 as uuid } from "uuid";
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('[datasource] ➜ incoming upload');
+    console.log("[datasources] ➜ create request");
 
+    // ✅ 1. Get authenticated user org
     const { orgId } = await getOrgProfileInternal();
-    const { url, key } = getAnalyticsCredentials(); // now points to n8n base
-    const incomingForm = await req.formData();
-    const type = incomingForm.get('type') as string;
-    if (!type) return NextResponse.json({ error: 'type required' }, { status: 400 });
 
-    // --- Build webhook URL for n8n ---
-    const target = new URL(`${url}/webhook/${orgId}`); // ✅ points to your n8n webhook
+    const form = await req.formData();
+    const type = form.get("type") as DataSourceType | null;
+    const name = form.get("name") as string | null;
+    const provider = form.get("provider") as string | null;
+    const configRaw = form.get("config") as string | null;
 
-    console.log('[datasource] ➜ relaying to n8n', target.toString());
-
-    const body: Record<string, FormDataEntryValue> = {};
-    for (const [k, v] of incomingForm.entries()) body[k] = v;
-
-    const headers = { 'x-api-key': key, 'Content-Type': 'application/json' };
-
-    const rowsRaw = body.data ? (body.data as string) : '[]';
-    let rows: any[];
-    try { rows = JSON.parse(rowsRaw); }
-    catch { rows = []; }
-
-    const engineRes = await fetch(target, {
-      method : 'POST',
-      headers,
-      body   : JSON.stringify({ orgId, rows }),
-    });
-
-    console.log('[datasource] ➜ n8n status', engineRes.status);
-    if (!engineRes.ok) {
-      const text = await engineRes.text();
-      console.error('[datasource] ➜ n8n error', text);
-      return NextResponse.json({ error: `n8n: ${text}` }, { status: engineRes.status });
+    if (!type || !name || !provider) {
+      return NextResponse.json(
+        { error: "Missing required fields: type, name, provider" },
+        { status: 400 }
+      );
     }
 
-    const data = await engineRes.json();
-    console.log('[datasource] ➜ n8n reply', data);
-    return NextResponse.json(data);
-  } catch (e: any) {
-    console.error('[datasource] ➜ crash', e);
-    return NextResponse.json({ error: e.message || 'relay failed' }, { status: 500 });
+    // ✅ Parse config JSON safely
+    let config: any = {};
+    try {
+      if (configRaw) config = JSON.parse(configRaw);
+    } catch (e) {
+      console.error("[datasources] invalid config JSON", e);
+      return NextResponse.json(
+        { error: "Invalid JSON in config field" },
+        { status: 400 }
+      );
+    }
+
+    // ✅ 3. Create datasource entry in Neon
+    const ds = await prisma.dataSource.create({
+      data: {
+        id: uuid(),
+        orgId,
+        name,
+        type,         // e.g. FILE_IMPORT, API, DB, POS_SYSTEM
+        config,       // complete metadata from modal
+        status: "ACTIVE",
+      },
+    });
+
+    console.log("[datasources] ✅ created", ds.id);
+
+    // ✅ 4. Return datasource id to frontend
+    return NextResponse.json({
+      id: ds.id,
+      orgId: ds.orgId,
+      createdAt: ds.createdAt,
+    });
+
+  } catch (err: any) {
+    console.error("[datasources] ➜ crash", err);
+    return NextResponse.json(
+      { error: err.message || "Failed to create datasource" },
+      { status: 500 }
+    );
   }
 }

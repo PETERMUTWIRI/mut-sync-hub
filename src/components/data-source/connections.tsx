@@ -1,5 +1,5 @@
+// components/data-source/connections.tsx
 "use client";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
 const cards = [
@@ -9,44 +9,18 @@ const cards = [
   { type: "DATABASE",    title: "Database",  desc: "Postgres, MySQL …", icon: "🗃️" },
 ];
 
-export function ConnectionCards({ onAdd }: { onAdd: (t: string, cfg: any) => void }) {
-  const router = useRouter();
-
-  async function handleAdd(type: string, defaultCfg: any) {
-  const fd = new FormData();
-  fd.append("type", type);
-  fd.append("name", `${type} source`);
-  fd.append("provider", type.toLowerCase());
-  fd.append("config", JSON.stringify(defaultCfg));
-  fd.append("data", JSON.stringify([]));
-
-  const res = await fetch("/api/datasources", { method: "POST", body: fd });
-  if (!res.ok) return alert(await res.text());
-
-  /*  ➜  grab the id we just got back  */
-  const created = await res.json();
-  const id = created.id || created.connectionId;
-  if (id) {
-    /*  ➜  wake n8n  */
-    await fetch(`/api/datasources/${id}/trigger`, { method: "POST" });
-  }
-
-  router.refresh();
+interface ConnectionCardsProps {
+  onOpenModal: (type: string) => void;
 }
 
+export function ConnectionCards({ onOpenModal }: ConnectionCardsProps) {
   return (
     <>
       {cards.map((c) => (
         <motion.button
           key={c.type}
           whileHover={{ scale: 1.05 }}
-          onClick={() =>
-            handleAdd(c.type, {
-              provider: c.type.toLowerCase(),
-              endpoint: c.type === "API" ? "/api/v1/events" : undefined,
-              path: c.type === "DATABASE" ? "postgres://localhost:5432/pos" : undefined,
-            })
-          }
+          onClick={() => onOpenModal(c.type)}
           className="flex flex-col items-center justify-center gap-2 rounded-xl bg-white/10 p-4 hover:bg-white/20 transition"
         >
           <div className="text-2xl">{c.icon}</div>
