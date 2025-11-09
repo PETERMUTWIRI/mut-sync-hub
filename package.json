@@ -4,18 +4,21 @@
   "private": true,
   "overrides": {
     "simple-swizzle": "^0.2.4",
-    "cssnano-simple": "npm:lightningcss@^1.30.2"
+    "cssnano-simple": "npm:lightningcss@^1.30.2",
+    "@smithy/types": "4.8.1", 
+    "@smithy/core": "3.2.3"  
   },
   "scripts": {
-   "dev":  "npx tailwindcss -i ./src/app/global.css -o ./src/app/tailwind-output.css --watch & next dev",
-   "build": "NEXT_TURBO=false npx tailwindcss -i ./src/app/global.css -o ./src/app/tailwind-output.css && next build",
-   "start": "next start",
-   "lint": "next lint",
-   "test": "jest",
-   "postinstall": "pnpm rebuild sharp && prisma generate"
+    "dev": "npx tailwindcss -i ./src/app/global.css -o ./src/app/tailwind-output.css --watch & next dev",
+    "build": "NEXT_TURBO=false npx tailwindcss -i ./src/app/global.css -o ./src/app/tailwind-output.css && next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "jest",
+    "postinstall": "pnpm rebuild sharp && prisma generate"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.918.0",
+    "@aws-sdk/s3-request-presigner": "^3.918.0",
     "@emailjs/browser": "^4.4.1",
     "@emailjs/nodejs": "^5.0.2",
     "@headlessui/react": "^2.2.9",
@@ -45,6 +48,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@stackframe/stack": "^2.8.47",
     "@supabase/supabase-js": "^2.76.1",
+    "@smithy/types": "^4.8.1",
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.90.5",

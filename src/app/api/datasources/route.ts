@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import type { DataSourceType } from "@prisma/client";
 import { getOrgProfileInternal } from "@/lib/org-profile";
 import { v4 as uuid } from "uuid";
-import { uploadToStorage } from "@/lib/storage"; // 🔥 ADD THIS
+// ❌ REMOVED: import { uploadToStorage } from "@/lib/storage";
 
 export async function POST(req: NextRequest) {
   try {
@@ -32,24 +32,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid JSON in config field" }, { status: 400 });
     }
 
-    // 🔥🔥🔥 HANDLE FILE UPLOAD
-    if (type === 'FILE_IMPORT') {
-      const file = form.get("file") as File | null;
-      if (!file) {
-        return NextResponse.json({ error: "No file provided for CSV upload" }, { status: 400 });
-      }
-
-      console.log(`[datasources] 📤 uploading ${file.name} to Storj...`);
-      const storjUrl = await uploadToStorage(file, orgId, uuid()); // Use temp UUID for path
-      console.log("[datasources] ✅ uploaded to:", storjUrl);
-
-      config = {
-        ...config,
-        fileUrl: storjUrl,
-        fileName: file.name,
-        fileSize: file.size,
-      };
-    }
+    // ❌ REMOVED: Entire file upload block
+    // The fileUrl is now provided by the frontend after direct upload to Storj
 
     const ds = await prisma.dataSource.create({
       data: {
@@ -57,7 +41,7 @@ export async function POST(req: NextRequest) {
         orgId,
         name,
         type,
-        config,
+        config, // This now includes fileUrl from frontend
         status: "ACTIVE",
       },
     });
