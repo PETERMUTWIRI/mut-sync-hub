@@ -2,13 +2,14 @@
 "use client";
 import { motion } from "framer-motion";
 
+// src/components/data-source/connections.tsx
 const cards = [
   { type: "FILE_IMPORT", title: "Upload CSV", desc: "Drop a spreadsheet", icon: "📁" },
   { type: "POS_SYSTEM",  title: "POS Plug-in", desc: "Connect your till", icon: "🛒" },
   { type: "API",         title: "REST API",  desc: "Any HTTP endpoint", icon: "🔌" },
   { type: "DATABASE",    title: "Database",  desc: "Postgres, MySQL …", icon: "🗃️" },
+  { type: "WEBHOOK",     title: "Webhook",   desc: "Receive POST requests", icon: "📨" }, // NEW
 ];
-
 interface ConnectionCardsProps {
   onOpenModal: (type: string) => void;
 }

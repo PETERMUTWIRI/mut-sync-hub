@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ConnectionCards } from "@/components/data-source/connections";
 import { FileUploadModal } from "@/components/data-source/FileUploadModal";
+import { WebhookModal } from "@/components/data-source/WebhookModal";
 import { ApiModal } from "@/components/data-source/ApiModal";
 import { DatabaseModal } from "@/components/data-source/DatabaseModal";
 import { PosModal } from "@/components/data-source/PosModal";
@@ -44,7 +45,7 @@ export default function DataSourcesPage() {
       setRecentRows(payload.rows);
     });
     setSocket(s);
-    return () => s.close();
+    return () => { s.close(); };
   }, [orgId]);
 
   // Modal submission handlers (modals will call these)
@@ -114,6 +115,12 @@ export default function DataSourcesPage() {
                   <PosModal 
                     onClose={() => setOpenModal(null)} 
                     onSuccess={handleModalSuccess}
+                  />
+                )}
+                {openModal === "WEBHOOK" && (
+                  <WebhookModal  
+                    onClose={() => setOpenModal(null)} 
+                    onSuccess={handleModalSuccess} 
                   />
                 )}
                 {openModal === "API" && (
