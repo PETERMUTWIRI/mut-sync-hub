@@ -1,72 +1,69 @@
 // app/api/datasources/[id]/trigger/route.ts
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';
-import { getAnalyticsCredentials } from '@/lib/analytics-credentials';
-import { prisma } from '@/lib/prisma';
+import { Queue } from 'bullmq';
+import { redis } from '@/lib/redis';
 
-const WORKFLOW_ID = process.env.N8N_WEBHOOK_ID || '10797c3b-17d6-41b5-bb67-2c71942018bf';
+const queue = new Queue('file-processor', {
+  // cast to any because the Redis client instance type doesn't exactly match
+  // bullmq's ConnectionOptions type in our typing setup
+  connection: redis as any,
+});
 
-async function retryFetch(url: string, options: RequestInit, retries = 3, delay = 2000): Promise<Response> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const res = await fetch(url, options);
-      if (res.ok) return res;
-      console.warn(`[trigger] → attempt ${attempt + 1} failed (${res.status})`);
-      if (attempt < retries) await new Promise(r => setTimeout(r, delay * (attempt + 1)));
-    } catch (err) {
-      console.warn(`[trigger] → attempt ${attempt + 1} network error:`, err);
-      if (attempt < retries) await new Promise(r => setTimeout(r, delay * (attempt + 1)));
-    }
-  }
-  throw new Error(`[trigger] → failed after ${retries + 1} attempts`);
-}
-
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
+    console.log('[trigger] Starting for datasource:', params.id);
+
     const { orgId } = await getOrgProfileInternal();
     
-    const datasource = await prisma.dataSource.findFirst({
-      where: { id: params.id, orgId },
-      select: { id: true, type: true, config: true, name: true }
-    });
+    // Get datasource from Redis
+    const datasourceKey = `datasource:${orgId}:${params.id}`;
+    const datasourceStr = await redis.get(datasourceKey);
     
-    if (!datasource) {
-      return NextResponse.json({ error: 'Datasource not found' }, { status: 404 });
+    if (!datasourceStr) {
+      return NextResponse.json(
+        { error: 'Datasource not found' }, 
+        { status: 404 }
+      );
     }
 
-    const { url } = getAnalyticsCredentials();
-    const baseUrl = url.replace('/api/v1', '');
-    const isProd = process.env.NODE_ENV === 'production';
-    const webhookUrl = isProd
-      ? `${baseUrl}/webhook/${orgId}`
-      : `${baseUrl}/webhook-test/${WORKFLOW_ID}`;
+    if (typeof datasourceStr !== 'string') {
+      console.error('[trigger] invalid datasource payload', typeof datasourceStr, datasourceStr);
+      return NextResponse.json(
+        { error: 'Invalid datasource payload' },
+        { status: 500 }
+      );
+    }
 
-    const payload = {
+    const datasource = JSON.parse(datasourceStr);
+
+    // Add job to queue (returns immediately, no timeout)
+    await queue.add('process-file', {
+      datasourceId: params.id,
       orgId,
-      sourceId: datasource.id,
-      type: datasource.type,
-      config: datasource.config,
-      ts: new Date().toISOString(),
-    };
-
-    const res = await retryFetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    }, 3, 1500);
-
-    await prisma.dataSource.update({
-      where: { id: params.id },
-      data: { lastSyncAt: new Date() }
+      fileUrl: datasource.config.fileUrl,
+      config: {
+        delimiter: datasource.config.delimiter,
+        hasHeaders: datasource.config.hasHeaders,
+      },
     });
 
-    return new Response(null, { status: 204 });
+    console.log('[trigger] ✅ Job queued for', params.id);
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'File processing queued',
+      jobId: params.id,
+    });
 
   } catch (err: any) {
-    console.error(`[trigger] → final failure:`, err.message || err);
-    return NextResponse.json({ error: 'Trigger failed', details: err.message }, { status: 502 });
+    console.error('[trigger] error', err);
+    return NextResponse.json(
+      { error: err.message || 'Failed to trigger processing' }, 
+      { status: 500 }
+    );
   }
 }

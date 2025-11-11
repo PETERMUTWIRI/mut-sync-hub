@@ -1,32 +1,34 @@
 // lib/storage.ts
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-const client = new S3Client({
-  region: "us-east-1", // Required but ignored by Storj
+const s3 = new S3Client({
+  region: "us-east-1",
   endpoint: "https://gateway.storjshare.io",
   credentials: {
     accessKeyId: process.env.STORJ_ACCESS_KEY!,
     secretAccessKey: process.env.STORJ_SECRET_KEY!,
   },
-  forcePathStyle: true, // CRITICAL for Storj
-});
+  forcePathStyle: true,
+}) as any; // Bypass TypeScript version issues
 
-export async function uploadToStorage(file: File, orgId: string, sourceId: string): Promise<string> {
-  const filename = `orgs/${orgId}/sources/${sourceId}/${Date.now()}-${file.name}`;
+export async function getPresignedUploadUrl(
+  orgId: string, 
+  fileName: string, 
+  contentType: string
+): Promise<{ presignedUrl: string; publicUrl: string }> {
+  const key = `orgs/${orgId}/uploads/${Date.now()}-${fileName}`;
   
-  await client.send(new PutObjectCommand({
-    Bucket: "mut-sync-bucket", // Create this bucket in Storj first
-    Key: filename,
-    Body: Buffer.from(await file.arrayBuffer()),
-    ContentType: file.type,
-  }));
-  
-  // Public URL for n8n to fetch
-  return `https://gateway.storjshare.io/insecure/mut-sync-bucket/${filename}`;
-}
+  const command = new PutObjectCommand({
+    Bucket: process.env.STORJ_BUCKET!,
+    Key: key,
+    ContentType: contentType,
+  });
 
-export async function downloadFile(url: string): Promise<Buffer> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
+  const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
+  
+  return {
+    presignedUrl,
+    publicUrl: `https://gateway.storjshare.io/insecure/${process.env.STORJ_BUCKET!}/${key}`,
+  };
 }

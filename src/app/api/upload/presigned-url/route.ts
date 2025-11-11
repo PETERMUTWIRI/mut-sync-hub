@@ -1,18 +1,7 @@
 // app/api/upload/presigned-url/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { getOrgProfileInternal } from "@/lib/org-profile";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-
-const s3 = new S3Client({
-  region: "us-east-1",
-  endpoint: "https://gateway.storjshare.io",
-  credentials: {
-    accessKeyId: process.env.STORJ_ACCESS_KEY!,
-    secretAccessKey: process.env.STORJ_SECRET_KEY!,
-  },
-  forcePathStyle: true,
-});
+import { NextRequest, NextResponse } from 'next/server';
+import { getOrgProfileInternal } from '@/lib/org-profile';
+import { getPresignedUploadUrl } from '@/lib/storage';
 
 export async function POST(req: NextRequest) {
   try {
@@ -20,29 +9,29 @@ export async function POST(req: NextRequest) {
     const { fileName, fileType } = await req.json();
 
     if (!fileName || !fileType) {
-      return NextResponse.json({ error: "Missing fileName or fileType" }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Missing fileName or fileType' }, 
+        { status: 400 }
+      );
     }
 
-    // Generate unique key
-    const key = `orgs/${orgId}/uploads/${Date.now()}-${fileName}`;
+    const { presignedUrl, publicUrl } = await getPresignedUploadUrl(
+      orgId,
+      fileName,
+      fileType
+    );
 
-    // Create presigned URL (valid for 5 minutes)
-    const command = new PutObjectCommand({
-      Bucket: process.env.STORJ_BUCKET!,
-      Key: key,
-      ContentType: fileType,
-    });
-
-    const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 300 });
-
-    return NextResponse.json({
-      presignedUrl,
-      key,
-      publicUrl: `https://gateway.storjshare.io/insecure/${process.env.STORJ_BUCKET!}/${key}`,
+    return NextResponse.json({ 
+      presignedUrl, 
+      publicUrl,
+      message: 'Upload directly to Storj using PUT method'
     });
 
   } catch (err) {
-    console.error("[presigned-url] error", err);
-    return NextResponse.json({ error: "Failed to generate upload URL" }, { status: 500 });
+    console.error('[presigned-url] error', err);
+    return NextResponse.json(
+      { error: 'Failed to generate upload URL' }, 
+      { status: 500 }
+    );
   }
 }
