@@ -1,27 +1,29 @@
 // @ts-nocheck
-// src/app/api/trigger/[id]/route.ts
-// This comment MUST be on line 1 to disable all TypeScript checks
-
+// src/app/api/trigger/route.ts
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 10;
+
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';
 import { redis, getDatasourceKey } from '@/lib/redis';
 import { qstash } from '@/lib/qstash';
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: NextRequest) {
   try {
-    const { id } = await params;
+    const body = await req.json();
+    const datasourceId = body?.datasourceId;
+
+    if (!datasourceId) {
+      return NextResponse.json({ error: 'Missing datasourceId in body' }, { status: 400 });
+    }
+
     const { orgId } = await getOrgProfileInternal();
-    const datasourceKey = getDatasourceKey(orgId, id);
+    const datasourceKey = getDatasourceKey(orgId, datasourceId);
     const datasourceStr = await redis.get(datasourceKey) as string | null;
     
     if (!datasourceStr || typeof datasourceStr !== 'string') {
+      console.error('[trigger] ❌ Datasource not found:', { orgId, datasourceId });
       return NextResponse.json({ error: 'Datasource not found' }, { status: 404 });
     }
 
@@ -31,10 +33,12 @@ export async function POST(
       return NextResponse.json({ error: 'Datasource missing fileUrl' }, { status: 400 });
     }
 
+    console.log('[trigger] ✅ Queuing job for datasource:', datasourceId);
+
     const result = await qstash.publishJSON({
       url: `${process.env.NEXT_PUBLIC_APP_URL}/api/process-file`,
       body: {
-        datasourceId: id,
+        datasourceId,
         orgId,
         fileUrl: datasource.config.fileUrl,
         config: {
@@ -49,11 +53,10 @@ export async function POST(
       success: true, 
       message: 'File processing queued',
       jobId: result.messageId,
-      datasourceId: id,
+      datasourceId,
     });
 
   } catch (err) {
-    // ✅ SAFE: Works with unknown type
     const errorMessage = err instanceof Error ? err.message : String(err);
     console.error('[trigger] ❌ Error:', errorMessage);
     return NextResponse.json({ error: errorMessage }, { status: 500 });
@@ -61,5 +64,5 @@ export async function POST(
 }
 
 export async function GET() {
-  return NextResponse.json({ message: 'Trigger endpoint active' });
+  return NextResponse.json({ message: 'Trigger endpoint active - use POST with { datasourceId }' });
 }

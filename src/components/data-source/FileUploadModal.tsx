@@ -84,8 +84,10 @@ export function FileUploadModal({ onClose, onSuccess }: {
       setStep('triggering');
       toast.loading('⚡ Starting data pipeline...', { id: toastId });
 
-      const triggerRes = await fetch(`/api/trigger/${datasourceId}`, {
+      const triggerRes = await fetch('/api/trigger', {  // ✅ Static route, no ID in URL
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ datasourceId }),  // ✅ Send ID in body
       });
 
       if (!triggerRes.ok) {
