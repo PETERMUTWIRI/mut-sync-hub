@@ -1,131 +1,90 @@
-// app/api/process-file/route.ts
+// src/app/api/datasources/[id]/trigger/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import Papa from 'papaparse';
+import { getOrgProfileInternal } from '@/lib/org-profile';
 import { redis, getDatasourceKey } from '@/lib/redis';
-import crypto from 'crypto';
+import { qstash } from '@/lib/qstash';
 
+// ✅ Next.js 16: Force dynamic, no caching
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 10; // Vercel Hobby limit
 
-export async function POST(req: NextRequest) {
-  const startTime = Date.now();
-  
+// ✅ Next.js 16: params is ALWAYS a Promise
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    // ✅ STEP 1: Read raw body for QStash signature verification
-    const bodyText = await req.text();
+    // ✅ AWAIT params (required in Next.js 16+)
+    const { id } = await params;
     
-    // Verify QStash signature in production
-    if (process.env.NODE_ENV === 'production') {
-      const signature = req.headers.get('upstash-signature');
-      if (!signature) {
-        return NextResponse.json({ error: 'Missing QStash signature' }, { status: 401 });
-      }
-
-      const { verifyQstashSignature } = await import('@/lib/qstash');
-      const isValid = await verifyQstashSignature(signature, bodyText);
-      if (!isValid) {
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-      }
+    const { orgId } = await getOrgProfileInternal();
+    const datasourceKey = getDatasourceKey(orgId, id);
+    const datasourceStr = await redis.get(datasourceKey) as string | null;
+    
+    if (!datasourceStr || typeof datasourceStr !== 'string') {
+      console.error('[trigger] ❌ Datasource not found:', { orgId, id });
+      return NextResponse.json({ error: 'Datasource not found' }, { status: 404 });
     }
 
-    // ✅ STEP 2: Parse job payload
-    const { datasourceId, orgId, fileUrl, config } = JSON.parse(bodyText);
+    const datasource = JSON.parse(datasourceStr);
 
-    if (!fileUrl || !datasourceId || !orgId) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!datasource.config?.fileUrl) {
+      return NextResponse.json({ 
+        error: 'Datasource missing fileUrl in config' 
+      }, { status: 400 });
     }
 
-    console.log(`[process-file] Starting job for datasource: ${datasourceId}`);
-
-    // ✅ STEP 3: Download file from Storj
-    const response = await fetch(fileUrl, {
-      signal: AbortSignal.timeout(8000), // 8s timeout
-    });
-
-    if (!response.ok) {
-      throw new Error(`Storj fetch failed: ${response.status} ${response.statusText}`);
-    }
-
-    const csvText = await response.text();
-    console.log(`[process-file] Fetched ${csvText.length} bytes`);
-
-    // ✅ STEP 4: Parse CSV
-    const { data, errors } = Papa.parse(csvText, {
-      header: config.hasHeaders,
-      delimiter: config.delimiter,
-      skipEmptyLines: true,
-      dynamicTyping: true,
-      preview: 15000, // Safety: max 15K rows
-    });
-
-    if (errors.length > 0) {
-      console.error('[process-file] CSV parse errors:', errors);
-      throw new Error(`CSV parsing failed: ${errors[0].message}`);
-    }
-
-    console.log(`[process-file] Parsed ${data.length} rows`);
-
-    // ✅ STEP 5: Transform to match Analytics Engine JsonPayload format
-    // Your engine expects: { config: {...}, data: [...] }
-    const analyticsPayload = {
-      config: {
-        delimiter: config.delimiter,
-        hasHeaders: config.hasHeaders,
-        datasourceId,
+    // ✅ Publish to QStash (tiny payload)
+    const result = await qstash.publishJSON({
+      url: `${process.env.NEXT_PUBLIC_APP_URL}/api/process-file`,
+      body: {
+        datasourceId: id,
         orgId,
-        fileUrl,
+        fileUrl: datasource.config.fileUrl,
+        config: {
+          delimiter: datasource.config.delimiter || ',',
+          hasHeaders: datasource.config.hasHeaders ?? true,
+        },
       },
-      data: data.map((row: any, index: number) => ({
-        id: crypto.randomUUID(),
-        orgId,
-        datasourceId,
-        data: row, // Keep raw row data
-        timestamp: row.timestamp || new Date().toISOString(),
-        rowNumber: index,
-        importedAt: new Date().toISOString(),
-      })),
-    };
-
-    // ✅ STEP 6: Call Analytics Engine with CORRECT format
-    const analyticsUrl = new URL(`${process.env.ANALYTICS_ENGINE_URL}/api/v1/datasources/json`);
-    analyticsUrl.searchParams.set('orgId', orgId);
-    analyticsUrl.searchParams.set('sourceId', datasourceId);
-    analyticsUrl.searchParams.set('type', 'FILE_IMPORT');
-
-    const analyticsRes = await fetch(analyticsUrl.toString(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANALYTICS_ENGINE_API_KEY!, // Match verify_key auth
-      },
-      body: JSON.stringify(analyticsPayload),
+      retries: 3,
     });
 
-    if (!analyticsRes.ok) {
-      throw new Error(`Analytics engine failed: ${await analyticsRes.text()}`);
-    }
-
-    const result = await analyticsRes.json();
-    const duration = Date.now() - startTime;
-
-    console.log(`[process-file] ✅ Success: ${data.length} rows in ${duration}ms`);
+    console.log('[trigger] ✅ Job queued via QStash:', {
+      messageId: result.messageId,
+      datasourceId: id,
+    });
 
     return NextResponse.json({ 
       success: true, 
-      rowsProcessed: data.length,
-      duration,
-      analyticsResult: result,
+      message: 'File processing queued',
+      jobId: result.messageId,
+      datasourceId: id,
     });
 
   } catch (err: any) {
-    const duration = Date.now() - startTime;
-    console.error(`[process-file] ❌ Failed after ${duration}ms:`, err);
-
-    // Return 500 so QStash retries
+    console.error('[trigger] ❌ Fatal error:', {
+      message: err.message,
+      stack: err.stack,
+      url: req.url,
+    });
+    
     return NextResponse.json(
-      { error: err.message || 'Processing failed' }, 
+      { error: err.message || 'Failed to trigger processing' }, 
       { status: 500 }
     );
   }
+}
+
+// ✅ Optional: GET endpoint for health check
+export async function GET() {
+  return NextResponse.json({ 
+    message: 'Trigger endpoint is active. Use POST to queue a job.',
+    method: 'POST',
+    requiredBody: {
+      datasourceId: 'string',
+      orgId: 'string',
+      fileUrl: 'string',
+      config: 'object',
+    },
+  });
 }
