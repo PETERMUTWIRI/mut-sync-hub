@@ -1,11 +1,15 @@
 // @ts-nocheck
+// src/app/api/trigger/[id]/route.ts
+// This comment MUST be on line 1 to disable all TypeScript checks
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const maxDuration = 10;
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';
 import { redis, getDatasourceKey } from '@/lib/redis';
 import { qstash } from '@/lib/qstash';
-
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
 
 export async function POST(
   req: NextRequest,
@@ -24,9 +28,7 @@ export async function POST(
     const datasource = JSON.parse(datasourceStr);
 
     if (!datasource.config?.fileUrl) {
-      return NextResponse.json({ 
-        error: 'Datasource missing fileUrl in config' 
-      }, { status: 400 });
+      return NextResponse.json({ error: 'Datasource missing fileUrl' }, { status: 400 });
     }
 
     const result = await qstash.publishJSON({
@@ -50,12 +52,11 @@ export async function POST(
       datasourceId: id,
     });
 
-  } catch (err: any) {
-    console.error('[trigger] error:', err);
-    return NextResponse.json(
-      { error: err.message || 'Failed to trigger processing' }, 
-      { status: 500 }
-    );
+  } catch (err) {
+    // ✅ SAFE: Works with unknown type
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    console.error('[trigger] ❌ Error:', errorMessage);
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
