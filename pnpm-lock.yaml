@@ -119,6 +119,9 @@ importers:
       '@types/formidable':
         specifier: ^3.4.6
         version: 3.4.6
+      '@upstash/qstash':
+        specifier: ^2.8.4
+        version: 2.8.4
       '@upstash/ratelimit':
         specifier: ^2.0.6
         version: 2.0.7(@upstash/redis@1.35.6)
@@ -170,6 +173,9 @@ importers:
       i18next:
         specifier: ^25.6.0
         version: 25.6.1(typescript@5.9.3)
+      ioredis:
+        specifier: ^5.8.2
+        version: 5.8.2
       lightweight-charts:
         specifier: ^5.0.9
         version: 5.0.9
@@ -3874,6 +3880,9 @@ packages:
     resolution: {integrity: sha512-7qJHGxpQgQr9/vmeS1PktEwvNAF7TI4iJDi8Pu2CFZ9YUGHZH4fOP5TfYlZ4aVxfopnELiE4BS4FBjyK7V1/xQ==}
     engines: {node: '>=16.0.0'}
 
+  '@upstash/qstash@2.8.4':
+    resolution: {integrity: sha512-iojHWUlRoC3M2e4XQ1NFEgC+7Orurrm5uIrPn5WilU7LvWQoocyjYBXR0VUalXkeMAmFyk4blF0EOYZY4igdIQ==}
+
   '@upstash/ratelimit@2.0.7':
     resolution: {integrity: sha512-qNQW4uBPKVk8c4wFGj2S/vfKKQxXx1taSJoSGBN36FeiVBBKHQgsjPbKUijZ9Xu5FyVK+pfiXWKIsQGyoje8Fw==}
     peerDependencies:
@@ -6271,6 +6280,10 @@ packages:
 
   neo-async@2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
+
+  neverthrow@7.2.0:
+    resolution: {integrity: sha512-iGBUfFB7yPczHHtA8dksKTJ9E8TESNTAx1UQWW6TzMF280vo9jdPYpLUXrMN1BCkPdHFdNG3fxOt2CUad8KhAw==}
+    engines: {node: '>=18'}
 
   next-http-proxy-middleware@1.2.7:
     resolution: {integrity: sha512-SasEovBqKMZzvY1elvWa33BxDWT5cc8G4KASS3ygADNV7v1O12y0rjA8F9eOD9aCNXYxJfnRHzauOE0rPSqISg==}
@@ -12496,6 +12509,12 @@ snapshots:
     dependencies:
       '@upstash/redis': 1.35.6
 
+  '@upstash/qstash@2.8.4':
+    dependencies:
+      crypto-js: 4.2.0
+      jose: 5.10.0
+      neverthrow: 7.2.0
+
   '@upstash/ratelimit@2.0.7(@upstash/redis@1.35.6)':
     dependencies:
       '@upstash/core-analytics': 0.0.10
@@ -15319,6 +15338,8 @@ snapshots:
   natural-compare@1.4.0: {}
 
   neo-async@2.6.2: {}
+
+  neverthrow@7.2.0: {}
 
   next-http-proxy-middleware@1.2.7:
     dependencies:

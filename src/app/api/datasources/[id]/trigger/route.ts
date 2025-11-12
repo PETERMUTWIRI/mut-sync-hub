@@ -1,66 +1,75 @@
 // app/api/datasources/[id]/trigger/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';
-import { Queue } from 'bullmq';
 import { redis } from '@/lib/redis';
+import { qstash } from '@/lib/qstash';
 
-const queue = new Queue('file-processor', {
-  // cast to any because the Redis client instance type doesn't exactly match
-  // bullmq's ConnectionOptions type in our typing setup
-  connection: redis as any,
-});
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    console.log('[trigger] Starting for datasource:', params.id);
-
     const { orgId } = await getOrgProfileInternal();
-    
-    // Get datasource from Redis
-    const datasourceKey = `datasource:${orgId}:${params.id}`;
-    const datasourceStr = await redis.get(datasourceKey);
-    
-    if (!datasourceStr) {
-      return NextResponse.json(
-        { error: 'Datasource not found' }, 
-        { status: 404 }
-      );
-    }
+    const resolvedParams = params instanceof Promise ? await params : params;
+    const { id } = resolvedParams;
 
-    if (typeof datasourceStr !== 'string') {
-      console.error('[trigger] invalid datasource payload', typeof datasourceStr, datasourceStr);
-      return NextResponse.json(
-        { error: 'Invalid datasource payload' },
-        { status: 500 }
-      );
+    // Fetch datasource
+    const datasourceKey = `datasource:${orgId}:${id}`;
+    const datasourceStr = await redis.get(datasourceKey) as string | null;
+    
+    if (!datasourceStr || typeof datasourceStr !== 'string') {
+      return NextResponse.json({ error: 'Datasource not found' }, { status: 404 });
     }
 
     const datasource = JSON.parse(datasourceStr);
 
-    // Add job to queue (returns immediately, no timeout)
-    await queue.add('process-file', {
-      datasourceId: params.id,
+    // Validate fileUrl exists
+    if (!datasource.config?.fileUrl) {
+      return NextResponse.json({ 
+        error: 'Datasource missing fileUrl in config' 
+      }, { status: 400 });
+    }
+
+    // Prepare tiny payload (under 1KB)
+    const jobPayload = {
+      datasourceId: id,
       orgId,
       fileUrl: datasource.config.fileUrl,
       config: {
-        delimiter: datasource.config.delimiter,
-        hasHeaders: datasource.config.hasHeaders,
+        delimiter: datasource.config.delimiter || ',',
+        hasHeaders: datasource.config.hasHeaders ?? true,
       },
+    };
+
+    // Publish to QStash (returns instantly, no timeout)
+    const result = await qstash.publishJSON({
+      url: `${process.env.NEXT_PUBLIC_APP_URL}/api/process-file`,
+      body: jobPayload,
+      retries: 3, // QStash will retry 3 times on failure
     });
 
-    console.log('[trigger] ✅ Job queued for', params.id);
+    console.log('[trigger] ✅ Job queued via QStash:', {
+      messageId: result.messageId,
+      datasourceId: id,
+    });
 
     return NextResponse.json({ 
       success: true, 
       message: 'File processing queued',
-      jobId: params.id,
+      jobId: result.messageId,
+      datasourceId: id,
     });
 
   } catch (err: any) {
-    console.error('[trigger] error', err);
+    console.error('[trigger] ❌ Error:', {
+      message: err.message,
+      stack: err.stack,
+      params: params,
+    });
+    
     return NextResponse.json(
       { error: err.message || 'Failed to trigger processing' }, 
       { status: 500 }
