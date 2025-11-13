@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const analyticsRes = await fetch(`${analyticsUrl}?${queryParams}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.ANALYTICS_ENGINE_API_KEY}`,
+        'x-api-key': ANALYTICS_ENGINE_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
