@@ -14,8 +14,10 @@ import { DatabaseModal } from "@/components/data-source/DatabaseModal";
 import { PosModal } from "@/components/data-source/PosModal";
 import { TransferHistory } from "@/components/data-source/history";
 import { LiveIndicator } from "@/components/data-source/live-indicator";
-import { io, Socket } from "socket.io-client";
 
+// ──────────────────────────────────────────────────────────────
+// TYPES & HELPERS
+// ──────────────────────────────────────────────────────────────
 async function getOrgProfile() {
   const res = await fetch("/api/org-profile");
   if (!res.ok) throw new Error("Unauthorized");
@@ -30,73 +32,145 @@ interface DataSource {
   createdAt: string;
 }
 
+interface IngestionResult {
+  id: string;
+  industry: string;
+  confidence: number;
+  recentRows: any[];
+  rowsProcessed: number;
+  schemaColumns: string[];
+  status: string;
+  message?: string;
+}
+
+// ──────────────────────────────────────────────────────────────
+// MAIN COMPONENT
+// ──────────────────────────────────────────────────────────────
 export default function DataSourcesPage() {
   const router = useRouter();
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [live, setLive] = useState(false);
-  const [orgId, setOrgId] = useState("");
-  const [recentRows, setRecentRows] = useState<any[]>([]);
+  const [orgId, setOrgId] = useState<string>("");
   const [openModal, setOpenModal] = useState<string | null>(null);
   const [pendingDatasourceId, setPendingDatasourceId] = useState<string | null>(null);
   const [activePipelines, setActivePipelines] = useState<DataSource[]>([]);
   const [isPolling, setIsPolling] = useState(false);
 
-  // Poll for ingestion result
-  const { data: liveActivity, isLoading: polling } = useQuery({
+  // ✅ CRITICAL: Fetch orgId on mount (auth + enables polling)
+  useEffect(() => {
+    getOrgProfile()
+      .then((profile) => {
+        console.log("✅ [DataSourcesPage] orgId loaded:", profile.orgId);
+        setOrgId(profile.orgId);
+      })
+      .catch((err) => {
+        console.error("❌ [DataSourcesPage] Failed to get orgId:", err);
+        toast.error("Session expired. Please sign in again.");
+        router.push("/handler/sign-in");
+      });
+  }, [router]);
+
+  // ✅ POLL FOR INGESTION RESULT (React Query)
+  const { data: liveActivity, isLoading: polling } = useQuery<IngestionResult | null>({
     queryKey: ["ingestion-result", orgId, pendingDatasourceId],
     queryFn: async () => {
-      if (!pendingDatasourceId || !orgId) return null;
-      const res = await fetch(`/api/ingestion-poll?orgId=${orgId}&datasourceId=${pendingDatasourceId}`);
-      if (!res.ok) throw new Error("Failed to poll");
-      return res.json();
-   },
-    enabled: !!pendingDatasourceId && !!orgId,
-    refetchInterval: (data) => data ? false : 2000, // Stop when data arrives
+      // Don't run if IDs aren't ready
+      if (!pendingDatasourceId || !orgId) {
+        console.log("⏳ [useQuery] Waiting for IDs...");
+        return null;
+      }
+
+      console.log("🔄 [useQuery] Polling for result:", {
+        orgId,
+        datasourceId: pendingDatasourceId,
+      });
+
+      const res = await fetch(
+        `/api/ingestion-poll?orgId=${orgId}&datasourceId=${pendingDatasourceId}`
+      );
+
+      if (!res.ok) {
+        console.error("❌ [useQuery] HTTP error:", res.status);
+        throw new Error("Failed to poll ingestion result");
+      }
+
+      const data = await res.json();
+      console.log("📦 [useQuery] Received data:", data ? "SUCCESS" : "Still processing...");
+
+      return data;
+    },
+    enabled: Boolean(orgId && pendingDatasourceId), // Only run when both exist
+    refetchInterval: (query) => {
+      const data = query.state.data; // ✅ Extract data from query state
+      if (data && data.status === "processed") {
+        console.log("✅ [useQuery] Processing complete, stopping poll");
+      return false;
+      }
+    return 2000;
+    },
     staleTime: 0,
+    retry: 3, // Retry 3 times on error
   });
 
-  // Poll for active pipelines
+  // ✅ POLL ACTIVE PIPELINES (Legacy, keep for now)
   useEffect(() => {
     if (!orgId) return;
 
     const pollActive = async () => {
       setIsPolling(true);
       try {
-        const res = await fetch(`/api/datasources?orgId=${orgId}&status=ACTIVE,PENDING`);
-        const sources = await res.json();
-        // Show only recently created (< 5 mins) to keep UI clean
-        const recent = sources.filter((s: DataSource) => 
-          new Date(s.createdAt).getTime() > Date.now() - 5 * 60 * 1000
+        const res = await fetch(
+          `/api/datasources?orgId=${orgId}&status=ACTIVE,PENDING`
         );
+        if (!res.ok) throw new Error("Failed to fetch datasources");
+        const sources = await res.json();
+
+        // Show only recent pipelines (< 5 mins)
+        const recent = sources.filter(
+          (s: DataSource) =>
+            new Date(s.createdAt).getTime() > Date.now() - 5 * 60 * 1000
+        );
+
         setActivePipelines(recent);
       } catch (err) {
-        console.error("[poll] failed:", err);
+        console.error("❌ [pollActive] Failed:", err);
       } finally {
         setIsPolling(false);
       }
     };
 
-    pollActive(); // Initial load
-    const interval = setInterval(pollActive, 10000); // Poll every 10s
+    pollActive();
+    const interval = setInterval(pollActive, 10000);
     return () => clearInterval(interval);
   }, [orgId]);
 
+  // ✅ HANDLE MODAL SUCCESS (starts polling)
   const handleModalSuccess = (datasourceId: string) => {
-   setOpenModal(null);
-   setPendingDatasourceId(datasourceId); // ✅ Start polling
-   toast.loading("⏳ Processing data in background...", { duration: 10000 });
+    console.log("🎯 [handleModalSuccess] Starting poll for:", datasourceId);
+    setOpenModal(null);
+    setPendingDatasourceId(datasourceId);
+    toast.loading("⏳ Processing data in background...", { duration: 10000 });
   };
 
+  // ✅ HANDLE MODAL CLOSE
   const handleModalClose = () => {
     setOpenModal(null);
   };
 
+  // ✅ DISMISS LIVE RESULT
+  const dismissLiveResult = () => {
+    setPendingDatasourceId(null);
+    toast.success("Live view dismissed");
+  };
+
+  // ──────────────────────────────────────────────────────────────
+  // RENDER
+  // ──────────────────────────────────────────────────────────────
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="min-h-screen bg-[#0B1020] text-gray-100 font-inter"
     >
+      {/* HEADER */}
       <motion.header
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -110,15 +184,15 @@ export default function DataSourcesPage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-400">Live</span>
-          <LiveIndicator live={!!liveActivity} />
-          {isPolling && (
-            <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></span>
+          <LiveIndicator live={!!liveActivity || isPolling} />
+          {polling && (
+            <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />
           )}
         </div>
       </motion.header>
 
       <main className="p-6 max-w-7xl mx-auto grid gap-8">
-        {/* 🔥 ACTIVE PIPELINES - NEW LIVELINESS SECTION */}
+        {/* 🔥 ACTIVE PIPELINES */}
         <AnimatePresence>
           {activePipelines.length > 0 && (
             <motion.div
@@ -128,7 +202,7 @@ export default function DataSourcesPage() {
               className="bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border border-teal-400/30 rounded-2xl p-6 backdrop-blur-md"
             >
               <h3 className="text-lg font-semibold text-teal-400 mb-4 flex items-center gap-2">
-                <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></span>
+                <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />
                 Active Data Pipelines
               </h3>
               <div className="space-y-3">
@@ -149,7 +223,7 @@ export default function DataSourcesPage() {
                       <span className="text-xs text-teal-300 bg-teal-900/30 px-2 py-1 rounded">
                         {ds.status}
                       </span>
-                      <div className="w-5 h-5 border-2 border-white/20 border-t-teal-400 rounded-full animate-spin"></div>
+                      <div className="w-5 h-5 border-2 border-white/20 border-t-teal-400 rounded-full animate-spin" />
                     </div>
                   </motion.div>
                 ))}
@@ -173,14 +247,14 @@ export default function DataSourcesPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm"
               onClick={handleModalClose}
             >
               <motion.div
                 initial={{ scale: 0.9, y: 20 }}
                 animate={{ scale: 1, y: 0 }}
                 exit={{ scale: 0.9, y: 20 }}
-                className="bg-[#1A1F2E] rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+                className="bg-[#1A1F2E] rounded-2xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto border border-white/10"
                 onClick={(e) => e.stopPropagation()}
               >
                 {openModal === "FILE_IMPORT" && (
@@ -203,24 +277,38 @@ export default function DataSourcesPage() {
           )}
         </AnimatePresence>
 
-        
+        {/* 3️⃣ POLLING LOADING STATE */}
+        {polling && pendingDatasourceId && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-black/40 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 border-2 border-white/20 border-t-teal-400 rounded-full animate-spin" />
+              <div>
+                <p className="text-white font-medium">Processing your data...</p>
+                <p className="text-xs text-gray-400">This usually takes 5-15 seconds</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
-        
-        {/* 🔥 LIVE INGESTION RESULT */}
+        {/* 4️⃣ LIVE INGESTION RESULT */}
         {liveActivity && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border border-teal-400/30 rounded-2xl p-6 backdrop-blur-md"
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-teal-400 flex items-center gap-2">
-                <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></span>
+                <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />
                 Live Pipeline: {liveActivity.id.slice(0, 8)}...
               </h3>
               <button
-                onClick={() => setPendingDatasourceId(null)}
-                className="text-xs text-gray-400 hover:text-white"
+                onClick={dismissLiveResult}
+                className="text-xs text-gray-400 hover:text-white transition-colors"
               >
                 Dismiss
               </button>
@@ -242,19 +330,22 @@ export default function DataSourcesPage() {
               </div>
             </div>
 
-            {/* Data Preview */}
-            <div className="bg-black/40 rounded-lg overflow-hidden">
+            {/* Data Preview Table */}
+            <div className="bg-black/40 rounded-lg overflow-hidden border border-white/5">
               <div className="px-4 py-2 bg-teal-900/20 border-b border-teal-400/20">
                 <p className="text-sm text-teal-300">
                   {liveActivity.rowsProcessed.toLocaleString()} rows processed
                 </p>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-80">
                 <table className="w-full text-xs">
                   <thead className="bg-black/60 sticky top-0">
                     <tr>
                       {liveActivity.schemaColumns.slice(0, 6).map((col: string) => (
-                        <th key={col} className="text-left px-3 py-2 text-gray-400 border-b border-white/5">
+                        <th
+                          key={col}
+                          className="text-left px-3 py-2 text-gray-400 border-b border-white/5"
+                        >
                           {col}
                         </th>
                       ))}
@@ -271,9 +362,9 @@ export default function DataSourcesPage() {
                       >
                         {liveActivity.schemaColumns.slice(0, 6).map((col: string) => (
                           <td key={col} className="px-3 py-2 text-gray-200">
-                            {typeof row[col] === 'string' && row[col].length > 30
+                            {typeof row[col] === "string" && row[col].length > 30
                               ? `${row[col].substring(0, 30)}...`
-                              : String(row[col] ?? '—')}
+                              : String(row[col] ?? "—")}
                           </td>
                         ))}
                       </motion.tr>
@@ -284,6 +375,18 @@ export default function DataSourcesPage() {
             </div>
           </motion.div>
         )}
+
+        {/* 5️⃣ TRANSFER HISTORY */}
+        <motion.div whileHover={{ scale: 1.01 }} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-cyan-400">Real-time Activity</h2>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-400">Auto-refresh</span>
+              <LiveIndicator live={!isPolling} />
+            </div>
+          </div>
+          <TransferHistory orgId={orgId} />
+        </motion.div>
       </main>
     </motion.div>
   );
