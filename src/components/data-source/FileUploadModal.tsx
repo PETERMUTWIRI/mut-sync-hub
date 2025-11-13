@@ -37,14 +37,14 @@ export function FileUploadModal({ onClose, onSuccess }: {
         throw new Error(`Failed to get upload URL: ${await presignRes.text()}`);
       }
 
-      const { presignedUrl, publicUrl } = await presignRes.json();
+      const { uploadUrl, downloadUrl } = await presignRes.json(); 
       console.log('[upload] 📤 presigned URL received');
 
       // Step 2: Upload directly to Storj
       setStep('uploading');
       toast.loading('☁️ Uploading to secure cloud...', { id: toastId });
 
-      const uploadRes = await fetch(presignedUrl, {
+      const uploadRes = await fetch(uploadUrl, {
         method: 'PUT',
         body: file,
         headers: { 'Content-Type': file.type },
@@ -67,7 +67,7 @@ export function FileUploadModal({ onClose, onSuccess }: {
       fd.append('config', JSON.stringify({
         delimiter,
         hasHeaders,
-        fileUrl: publicUrl,
+        fileUrl: downloadUrl,
         fileName: file.name,
         fileSize: file.size,
       }));

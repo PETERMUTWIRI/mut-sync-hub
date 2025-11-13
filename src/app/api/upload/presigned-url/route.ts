@@ -1,4 +1,4 @@
-// app/api/upload/presigned-url/route.ts
+// src/app/api/upload/presigned-url/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getOrgProfileInternal } from '@/lib/org-profile';
 import { getPresignedUploadUrl } from '@/lib/storage';
@@ -15,22 +15,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { presignedUrl, publicUrl } = await getPresignedUploadUrl(
+    const { uploadUrl, downloadUrl, key } = await getPresignedUploadUrl(
       orgId,
       fileName,
       fileType
     );
 
     return NextResponse.json({ 
-      presignedUrl, 
-      publicUrl,
-      message: 'Upload directly to Storj using PUT method'
+      uploadUrl,      // ✅ PUT the file here
+      downloadUrl,    // ✅ SAVE THIS in your datasource config
+      key,
+      message: 'Upload to PUT URL, save downloadUrl for async processing'
     });
 
   } catch (err) {
     console.error('[presigned-url] error', err);
     return NextResponse.json(
-      { error: 'Failed to generate upload URL' }, 
+      { error: 'Failed to generate URLs' }, 
       { status: 500 }
     );
   }
