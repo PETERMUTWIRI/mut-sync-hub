@@ -57,6 +57,9 @@ export async function POST(req: NextRequest) {
     const rows = parsed.data;
     console.log('[process-file] ✓ CSV parsed:', rows.length, 'rows');
 
+    // ✅ Define the variable here
+    const ANALYTICS_API_KEY = process.env.ANALYTICS_ENGINE_API_KEY;
+    
     // 3. 🚀 Call HF analytics engine JSON endpoint
     const analyticsUrl = `${process.env.ANALYTICS_ENGINE_URL}/api/v1/datasources/json`;
     const queryParams = new URLSearchParams({
@@ -70,7 +73,7 @@ export async function POST(req: NextRequest) {
     const analyticsRes = await fetch(`${analyticsUrl}?${queryParams}`, {
       method: 'POST',
       headers: {
-        'x-api-key': ANALYTICS_ENGINE_API_KEY,
+        'x-api-key': ANALYTICS_API_KEY, // ✅ CORRECTED: Use the variable we defined
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -81,7 +84,7 @@ export async function POST(req: NextRequest) {
           hasHeaders: config.hasHeaders,
           source: 'STORJ',
         },
-        data: rows, // ✅ This matches your Pydantic model
+        data: rows,
       }),
     });
 
