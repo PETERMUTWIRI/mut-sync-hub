@@ -1,7 +1,6 @@
 // @ts-nocheck
 // src/app/api/trigger/route.ts
 
-// ✅ CONFIG EXPORTS AT TOP
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 10;
@@ -32,22 +31,21 @@ export async function POST(req: NextRequest) {
     const datasourceKey = getDatasourceKey(orgId, datasourceId);
     console.log('[trigger] Redis key:', datasourceKey);
 
-    const datasourceStr = await redis.get(datasourceKey) as string | null;
+    // ✅ CRITICAL FIX: Upstash returns parsed objects, not strings
+    const datasourceStrOrObj = await redis.get(datasourceKey);
     
-    if (!datasourceStr || typeof datasourceStr !== 'string') {
-      console.error('[trigger] ❌ DATASOURCE NOT FOUND IN REDIS');
-      console.error('[trigger] Key:', datasourceKey);
-      console.error('[trigger] Value:', datasourceStr);
-      console.error('[trigger] orgId from profile:', orgId);
-      console.error('[trigger] datasourceId from body:', datasourceId);
+    if (!datasourceStrOrObj) {
+      console.error('[trigger] ❌ DATASOURCE NOT FOUND IN REDIS (null/undefined)');
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return NextResponse.json({ error: 'Datasource not found' }, { status: 404 });
     }
 
-    console.log('[trigger] ✓ DATASOURCE FOUND:', datasourceStr.substring(0, 100) + '...');
+    // ✅ Handle both string and parsed object
+    const datasource = typeof datasourceStrOrObj === 'string' 
+      ? JSON.parse(datasourceStrOrObj) 
+      : datasourceStrOrObj;
 
-    const datasource = JSON.parse(datasourceStr);
-    console.log('[trigger] Parsed datasource:', { id: datasource.id, hasFileUrl: !!datasource.config?.fileUrl });
+    console.log('[trigger] ✓ DATASOURCE LOADED:', datasource.id);
 
     if (!datasource.config?.fileUrl) {
       console.error('[trigger] ❌ Missing fileUrl in config');
@@ -83,7 +81,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     console.error('[trigger] ❌ UNEXPECTED ERROR:', errorMessage);
-    console.error('[trigger] Stack:', err.stack);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
