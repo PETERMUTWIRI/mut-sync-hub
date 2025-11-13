@@ -51,23 +51,14 @@
 //   };
 // }
 
-import { v4 as uuidv4 } from 'uuid';
-
+// ✅ HARDCODED to prevent orgId drift between routes
 export async function getOrgProfileInternal() {
-  // Validate env vars are set
-  if (!process.env.TEMP_ORG_ID || !process.env.TEMP_USER_ID) {
-    throw new Error(
-      'Missing TEMP_ORG_ID or TEMP_USER_ID in environment variables. ' +
-      'Add them to Vercel: TEMP_ORG_ID=org_synth_123, TEMP_USER_ID=user_synth_456'
-    );
-  }
-
-  console.log('[org-profile] 🚨 Using synthetic profile (Neon bypass)');
+  console.log('[org-profile] 🚨 Using HARDCODED synthetic profile');
 
   return {
-    userId: process.env.TEMP_USER_ID!,
-    orgId: process.env.TEMP_ORG_ID!,
-    role: 'USER' as const,
-    plan: '088c6a32-7840-4188-bc1a-bdc0c6bee723', // Free plan ID
+    userId: 'user_synth_456',
+    orgId: 'org_synth_123', // ✅ SAME orgId in all routes
+    role: 'USER',
+    plan: '088c6a32-7840-4188-bc1a-bdc0c6bee723',
   };
 }
