@@ -3,58 +3,117 @@
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-export const maxDuration = 300; // Increase for file processing
+export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getOrgProfileInternal } from '@/lib/org-profile';
 import { redis, getDatasourceKey } from '@/lib/redis';
+import Papa from 'papaparse';
 
 export async function POST(req: NextRequest) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('[process-file] ➜ QSTASH JOB STARTED');
 
   try {
-    // ✅ CORRECT: Use datasourceId, not id
+    // ✅ Validate env vars
+    if (!process.env.ANALYTICS_ENGINE_URL || !process.env.ANALYTICS_API_KEY) {
+      console.error('[process-file] ❌ Missing ANALYTICS_ENGINE_URL or ANALYTICS_API_KEY');
+      return NextResponse.json({ error: 'Analytics engine not configured' }, { status: 500 });
+    }
+
     const body = await req.json();
     const { datasourceId, orgId, fileUrl, config } = body;
 
-    console.log('[process-file] Payload received:', { datasourceId, orgId, fileUrl });
-
-    if (!datasourceId || !orgId || !fileUrl) {
-      console.error('[process-file] ❌ Missing required fields in payload');
-      return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
-    }
-
-    // Optional: Verify datasource still exists
+    // ✅ Verify datasource
     const datasourceKey = getDatasourceKey(orgId, datasourceId);
-    const datasource = await redis.get(datasourceKey);
+    const datasourceRaw = await redis.get(datasourceKey);
+    const datasource = typeof datasourceRaw === 'string' ? JSON.parse(datasourceRaw) : datasourceRaw;
     
     if (!datasource) {
-      console.error('[process-file] ❌ Datasource not found in Redis');
+      console.error('[process-file] ❌ Datasource not found');
       return NextResponse.json({ error: 'Datasource not found' }, { status: 404 });
     }
 
-    console.log('[process-file] ✓ Datasource verified');
+    console.log('[process-file] ✓ Datasource verified:', datasource.name);
 
-    // TODO: Add your actual file processing logic here
-    // Example: Download CSV, parse, send to analytics engine
+    // 1. ⬇️ Download file from Storj
+    const fileRes = await fetch(fileUrl);
+    if (!fileRes.ok) throw new Error(`Download failed: ${fileRes.status}`);
+    const csvText = await fileRes.text();
+    console.log('[process-file] ✓ File downloaded:', csvText.length, 'bytes');
+
+    // 2. 📊 Parse CSV to JSON
+    const parsed = Papa.parse(csvText, {
+      header: config.hasHeaders ?? true,
+      delimiter: config.delimiter || ',',
+      skipEmptyLines: true,
+      dynamicTyping: true,
+      transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, '_'),
+    });
+
+    if (parsed.errors.length > 0) {
+      throw new Error(`CSV parse failed: ${parsed.errors[0].message}`);
+    }
+
+    const rows = parsed.data;
+    console.log('[process-file] ✓ CSV parsed:', rows.length, 'rows');
+
+    // 3. 🚀 Call HF analytics engine JSON endpoint
+    const analyticsUrl = `${process.env.ANALYTICS_ENGINE_URL}/api/v1/datasources/json`;
+    const queryParams = new URLSearchParams({
+      orgId,
+      sourceId: datasourceId,
+      type: 'FILE_IMPORT'
+    });
+
+    console.log('[process-file] ➜ Calling HF:', `${analyticsUrl}?${queryParams.toString()}`);
     
-    console.log('[process-file] ✅ Job completed successfully');
+    const analyticsRes = await fetch(`${analyticsUrl}?${queryParams}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.ANALYTICS_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        config: {
+          fileUrl,
+          fileName: datasource.name,
+          delimiter: config.delimiter,
+          hasHeaders: config.hasHeaders,
+          source: 'STORJ',
+        },
+        data: rows, // ✅ This matches your Pydantic model
+      }),
+    });
+
+    if (!analyticsRes.ok) {
+      const errorText = await analyticsRes.text();
+      console.error('[process-file] ❌ HF error:', analyticsRes.status, errorText);
+      throw new Error(`HF rejected: ${analyticsRes.status} - ${errorText}`);
+    }
+
+    const result = await analyticsRes.json();
+    console.log('[process-file] ✅ HF response:', result);
+
+    // 4. ✅ Update status
+    await redis.set(datasourceKey, JSON.stringify({
+      ...datasource,
+      status: 'PROCESSED',
+      processedAt: new Date().toISOString(),
+      transmittedRows: rows.length,
+    }));
+
+    console.log('[process-file] ✅ COMPLETED');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
-    return NextResponse.json({ success: true, datasourceId });
+    return NextResponse.json({ success: true, datasourceId, rows: rows.length });
 
   } catch (err: any) {
-    console.error('[process-file] ❌ FATAL ERROR:', {
-      message: err.message,
-      stack: err.stack,
-    });
+    console.error('[process-file] ❌ FATAL:', err.message);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
-// Health check
 export async function GET() {
-  return NextResponse.json({ message: 'Process-file endpoint active' });
+  return NextResponse.json({ message: 'Active' });
 }
