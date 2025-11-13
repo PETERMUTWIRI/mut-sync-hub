@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
 
   try {
     // ✅ Validate env vars
-    if (!process.env.ANALYTICS_ENGINE_URL || !process.env.ANALYTICS_API_KEY) {
-      console.error('[process-file] ❌ Missing ANALYTICS_ENGINE_URL or ANALYTICS_API_KEY');
+    if (!process.env.ANALYTICS_ENGINE_URL || !process.env.ANALYTICS_ENGINE_API_KEY) {
+      console.error('[process-file] ❌ Missing ANALYTICS_ENGINE_URL or ANALYTICS_ENGINE_API_KEY');
       return NextResponse.json({ error: 'Analytics engine not configured' }, { status: 500 });
     }
 
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const analyticsRes = await fetch(`${analyticsUrl}?${queryParams}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.ANALYTICS_API_KEY}`,
+        'Authorization': `Bearer ${process.env.ANALYTICS_ENGINE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
