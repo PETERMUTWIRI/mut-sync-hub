@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
+import { useQuery } from "@tanstack/react-query";
 import { ConnectionCards } from "@/components/data-source/connections";
 import { FileUploadModal } from "@/components/data-source/FileUploadModal";
 import { WebhookModal } from "@/components/data-source/WebhookModal";
@@ -36,29 +37,23 @@ export default function DataSourcesPage() {
   const [orgId, setOrgId] = useState("");
   const [recentRows, setRecentRows] = useState<any[]>([]);
   const [openModal, setOpenModal] = useState<string | null>(null);
+  const [pendingDatasourceId, setPendingDatasourceId] = useState<string | null>(null);
   const [activePipelines, setActivePipelines] = useState<DataSource[]>([]);
   const [isPolling, setIsPolling] = useState(false);
 
-  // Socket.io connection
-  useEffect(() => {
-    getOrgProfile()
-      .then((u) => setOrgId(u.orgId))
-      .catch(() => console.error("No org profile"));
-
-    const token = document.cookie.match(/stack-session=([^;]+)/)?.[1] || "";
-    const s = io(`${process.env.NEXT_PUBLIC_ORIGIN}/analytics`, {
-      auth: { token },
-      query: { orgId },
-    });
-    s.on("connect", () => setLive(true));
-    s.on("disconnect", () => setLive(false));
-    s.on("datasource:new-rows", (payload) => {
-      console.log("[ui] live rows", payload.rows);
-      setRecentRows(payload.rows);
-    });
-    setSocket(s);
-    return () => { s.close(); };
-  }, [orgId]);
+  // Poll for ingestion result
+  const { data: liveActivity, isLoading: polling } = useQuery({
+    queryKey: ["ingestion-result", orgId, pendingDatasourceId],
+    queryFn: async () => {
+      if (!pendingDatasourceId || !orgId) return null;
+      const res = await fetch(`/api/ingestion-poll?orgId=${orgId}&datasourceId=${pendingDatasourceId}`);
+      if (!res.ok) throw new Error("Failed to poll");
+      return res.json();
+   },
+    enabled: !!pendingDatasourceId && !!orgId,
+    refetchInterval: (data) => data ? false : 2000, // Stop when data arrives
+    staleTime: 0,
+  });
 
   // Poll for active pipelines
   useEffect(() => {
@@ -87,10 +82,9 @@ export default function DataSourcesPage() {
   }, [orgId]);
 
   const handleModalSuccess = (datasourceId: string) => {
-    setOpenModal(null);
-    // Show immediate feedback
-    toast.success(`🎉 Datasource ${datasourceId.slice(0, 8)}... is live!`);
-    router.refresh();
+   setOpenModal(null);
+   setPendingDatasourceId(datasourceId); // ✅ Start polling
+   toast.loading("⏳ Processing data in background...", { duration: 10000 });
   };
 
   const handleModalClose = () => {
@@ -116,7 +110,7 @@ export default function DataSourcesPage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-400">Live</span>
-          <LiveIndicator live={live} />
+          <LiveIndicator live={!!liveActivity} />
           {isPolling && (
             <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></span>
           )}
@@ -209,34 +203,87 @@ export default function DataSourcesPage() {
           )}
         </AnimatePresence>
 
-        {/* 3️⃣ LIVE DATA SAMPLE */}
-        {recentRows.length > 0 && (
+        
+
+        
+        {/* 🔥 LIVE INGESTION RESULT */}
+        {liveActivity && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md"
+            className="bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border border-teal-400/30 rounded-2xl p-6 backdrop-blur-md"
           >
-            <h3 className="text-lg font-medium text-white mb-3 flex items-center gap-2">
-              <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-              Live Data Sample
-            </h3>
-            <pre className="bg-black/30 p-3 rounded-lg overflow-auto text-xs text-gray-200 max-h-64">
-              {JSON.stringify(recentRows, null, 2)}
-            </pre>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-teal-400 flex items-center gap-2">
+                <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse"></span>
+                Live Pipeline: {liveActivity.id.slice(0, 8)}...
+              </h3>
+              <button
+                onClick={() => setPendingDatasourceId(null)}
+                className="text-xs text-gray-400 hover:text-white"
+              >
+                Dismiss
+              </button>
+            </div>
+
+            {/* Industry Detection */}
+            <div className="bg-black/40 p-4 rounded-lg mb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-gray-400">Industry Detected</p>
+                  <p className="text-xl font-bold text-white capitalize">{liveActivity.industry}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-400">Confidence</p>
+                  <p className="text-xl font-bold text-teal-400">
+                    {(liveActivity.confidence * 100).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Data Preview */}
+            <div className="bg-black/40 rounded-lg overflow-hidden">
+              <div className="px-4 py-2 bg-teal-900/20 border-b border-teal-400/20">
+                <p className="text-sm text-teal-300">
+                  {liveActivity.rowsProcessed.toLocaleString()} rows processed
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="bg-black/60 sticky top-0">
+                    <tr>
+                      {liveActivity.schemaColumns.slice(0, 6).map((col: string) => (
+                        <th key={col} className="text-left px-3 py-2 text-gray-400 border-b border-white/5">
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {liveActivity.recentRows.map((row: any, i: number) => (
+                      <motion.tr
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        key={i}
+                        className="border-b border-white/5 hover:bg-white/5"
+                      >
+                        {liveActivity.schemaColumns.slice(0, 6).map((col: string) => (
+                          <td key={col} className="px-3 py-2 text-gray-200">
+                            {typeof row[col] === 'string' && row[col].length > 30
+                              ? `${row[col].substring(0, 30)}...`
+                              : String(row[col] ?? '—')}
+                          </td>
+                        ))}
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </motion.div>
         )}
-
-        {/* 4️⃣ TRANSFER HISTORY */}
-        <motion.div whileHover={{ scale: 1.01 }} className="bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-cyan-400">Real-time Activity</h2>
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-400">Live</span>
-              <LiveIndicator live={live} />
-            </div>
-          </div>
-          <TransferHistory socket={socket} />
-        </motion.div>
       </main>
     </motion.div>
   );

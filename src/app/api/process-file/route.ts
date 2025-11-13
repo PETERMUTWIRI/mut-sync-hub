@@ -96,6 +96,15 @@ export async function POST(req: NextRequest) {
 
     const result = await analyticsRes.json();
     console.log('[process-file] ✅ HF response:', result);
+    
+    // ✅ SAVE TO REDIS - ADD THIS BLOCK (4 lines)
+    const liveKey = `orgs/${orgId}/live_ingestion/${datasourceId}`;
+    await redis.set(liveKey, JSON.stringify({
+      ...result,
+      createdAt: new Date().toISOString(),
+    }), { ex: 300 }); // TTL 5 minutes
+    console.log('[process-file] ✅ Live response saved to Redis');
+
 
     // 4. ✅ Update status
     await redis.set(datasourceKey, JSON.stringify({
