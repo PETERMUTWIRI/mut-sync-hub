@@ -129,7 +129,7 @@ export default function DataSourcesPage() {
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-400">Live</span>
-          <LiveIndicator live={!!liveActivity || polling} />
+          <LiveIndicator live={!isPolling} />
           {isPolling && <span className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />}
         </div>
       </motion.header>

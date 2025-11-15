@@ -1,3 +1,5 @@
+
+console.log('=== PROCESS FILE MODULE LOADED ==='); 
 // @ts-nocheck
 // src/app/api/process-file/route.ts
 
