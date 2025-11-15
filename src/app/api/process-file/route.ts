@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     const analyticsRes = await fetch(`${analyticsUrl}?${queryParams}`, {
       method: 'POST',
       headers: {
-        'x-api-key': ANALYTICS_API_KEY, // ✅ CORRECTED: Use the variable we defined
+        'x-api-key': ANALYTICS_API_KEY,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -96,17 +96,21 @@ export async function POST(req: NextRequest) {
 
     const result = await analyticsRes.json();
     console.log('[process-file] ✅ HF response:', result);
-    
-    // ✅ SAVE TO REDIS - ADD THIS BLOCK (4 lines)
+
+    // ✅ CRITICAL: SAVE RESPONSE TO REDIS (This was missing!)
     const liveKey = `orgs/${orgId}/live_ingestion/${datasourceId}`;
-    await redis.set(liveKey, JSON.stringify({
-      ...result,
-      createdAt: new Date().toISOString(),
-    }), { ex: 300 }); // TTL 5 minutes
+    console.log('[process-file] 💾 Saving to Redis key:', liveKey);
+    await redis.set(
+      liveKey, 
+      JSON.stringify({
+        ...result,
+        createdAt: new Date().toISOString(),
+      }), 
+      { ex: 300 } // 5 minute TTL
+    );
     console.log('[process-file] ✅ Live response saved to Redis');
 
-
-    // 4. ✅ Update status
+    // 4. ✅ Update datasource status
     await redis.set(datasourceKey, JSON.stringify({
       ...datasource,
       status: 'PROCESSED',
