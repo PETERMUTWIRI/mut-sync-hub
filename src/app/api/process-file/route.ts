@@ -94,23 +94,48 @@ export async function POST(req: NextRequest) {
       throw new Error(`HF rejected: ${analyticsRes.status} - ${errorText}`);
     }
 
-    const result = await analyticsRes.json();
+        const result = await analyticsRes.json();
     console.log('[process-file] ✅ HF response:', result);
 
-    // ✅ CRITICAL: SAVE RESPONSE TO REDIS (This was missing!)
+    // ✅ CRITICAL: SAVE WITH VERIFICATION (Like datasource route)
     const liveKey = `orgs/${orgId}/live_ingestion/${datasourceId}`;
-    console.log('[process-file] 💾 Saving to Redis key:', liveKey);
+    console.log('[process-file] 💾 Attempting Redis save at key:', liveKey);
+
+    // Test Redis connection first
+    console.log('[process-file] Testing Redis connection...');
+    const redisPing = await redis.ping();
+    console.log('[process-file] Redis ping:', redisPing);
+
+    // Save the data
+    console.log('[process-file] Saving data to Redis...');
     await redis.set(
       liveKey, 
       JSON.stringify({
         ...result,
         createdAt: new Date().toISOString(),
       }), 
-      { ex: 300 } // 5 minute TTL
+      { ex: 300 }
     );
+    console.log('[process-file] ✓ Write command sent');
+
+    // ✅ VERIFICATION (Crucial step)
+    console.log('[process-file] Verifying Redis write...');
+    const verifyWrite = await redis.get(liveKey);
+    
+    if (!verifyWrite) {
+      console.error('[process-file] ❌ VERIFICATION FAILED: Key not found in Redis');
+      throw new Error('Redis write verification failed - data not persisted');
+    }
+
+    // ✅ SAFE: Handle both string and parsed object
+    const verifyStr = typeof verifyWrite === 'string' 
+      ? verifyWrite.substring(0, 100) + '...' 
+      : JSON.stringify(verifyWrite).substring(0, 100) + '...';
+    
+    console.log('[process-file] ✓ Verification read:', verifyStr);
     console.log('[process-file] ✅ Live response saved to Redis');
 
-    // 4. ✅ Update datasource status
+    // Continue with status update...
     await redis.set(datasourceKey, JSON.stringify({
       ...datasource,
       status: 'PROCESSED',
@@ -120,8 +145,6 @@ export async function POST(req: NextRequest) {
 
     console.log('[process-file] ✅ COMPLETED');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-    return NextResponse.json({ success: true, datasourceId, rows: rows.length });
 
   } catch (err: any) {
     console.error('[process-file] ❌ FATAL:', err.message);
