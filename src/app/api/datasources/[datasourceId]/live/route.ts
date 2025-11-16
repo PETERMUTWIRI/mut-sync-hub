@@ -10,13 +10,14 @@ import { getOrgProfileInternal } from '@/lib/org-profile';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { datasourceId: string } }
+  { params }: { params: Promise<{ datasourceId: string }> }  // <-- Make it a Promise
 ) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('[live-data] ➜ LIVE DATA REQUEST');
 
   try {
-    const datasourceId = params.datasourceId;
+    // ✅ AWAIT the params
+    const { datasourceId } = await params;
     console.log('[live-data] Datasource ID:', datasourceId);
 
     // Get orgId from profile
