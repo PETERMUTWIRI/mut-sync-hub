@@ -4,22 +4,21 @@ export const runtime = 'nodejs';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
+import { getOrgProfileInternal } from '@/lib/org-profile';
 
+// src/app/api/ingestion-poll/route.ts
 export async function GET(req: NextRequest) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('[ingestion-poll] ➜ REQUEST RECEIVED');
 
   try {
     const { searchParams } = new URL(req.url);
-    const orgId = searchParams.get("orgId");
     const datasourceId = searchParams.get("datasourceId");
 
-    console.log('[ingestion-poll] Params:', { orgId, datasourceId });
-
-    if (!orgId || !datasourceId) {
-      console.log('[ingestion-poll] ❌ Missing params, returning null');
-      return NextResponse.json(null);
-    }
+    // ✅ Get orgId from profile (not URL params)
+    const profile = await getOrgProfileInternal();
+    const orgId = profile.orgId;
+    console.log('[ingestion-poll] Using orgId from profile:', orgId);
 
     const key = `orgs/${orgId}/live_ingestion/${datasourceId}`;
     console.log('[ingestion-poll] Redis key:', key);

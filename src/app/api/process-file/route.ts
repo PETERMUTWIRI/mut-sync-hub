@@ -22,7 +22,9 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     console.log('[process-file] Request body keys:', Object.keys(body));
-    const { datasourceId, orgId, fileUrl, config } = body;
+    const profile = await getOrgProfileInternal();
+    const orgId = profile.orgId;
+    console.log('[process-file] Using orgId from profile:', orgId);
 
     // Verify datasource
     const datasourceKey = getDatasourceKey(orgId, datasourceId);
