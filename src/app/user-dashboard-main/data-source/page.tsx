@@ -1,3 +1,4 @@
+
 // app/connections/page.tsx
 "use client";
 
@@ -61,6 +62,8 @@ export default function DataSourcesPage() {
   const { data: liveActivity, isLoading: polling } = useQuery<IngestionResult | null>({
     queryKey: ["ingestion-result", orgId, pendingDatasourceId],
     queryFn: async () => {
+      
+      console.log('🔄 [ingestion-poll] Fetching for:', { orgId, datasourceId: pendingDatasourceId });
       if (!pendingDatasourceId || !orgId) return null;
       const res = await fetch(
         `/api/ingestion-poll?orgId=${orgId}&datasourceId=${pendingDatasourceId}`
@@ -77,28 +80,38 @@ export default function DataSourcesPage() {
     staleTime: 0,
   });
 
-  // ✅ Poll active pipelines
+  
+  // ✅ AUTO-DETECT AND POLL NEWEST PIPELINE
   useEffect(() => {
     if (!orgId) return;
-    const pollActive = async () => {
-      setIsPolling(true);
-      try {
-        const res = await fetch(`/api/datasources?orgId=${orgId}&status=ACTIVE,PENDING`);
+  
+   const pollActive = async () => {
+     setIsPolling(true);
+     try {
+       const res = await fetch(`/api/datasources?orgId=${orgId}&status=ACTIVE,PENDING`);
         const sources = await res.json();
         const recent = sources.filter(
-          (s: DataSource) => new Date(s.createdAt).getTime() > Date.now() - 5 * 60 * 1000
-        );
-        setActivePipelines(recent);
+         (s: DataSource) => new Date(s.createdAt).getTime() > Date.now() - 5 * 60 * 1000
+       );
+       setActivePipelines(recent);
+      
+        // 🎯 AUTO-POLL THE NEWEST PIPELINE
+        if (recent.length > 0 && !pendingDatasourceId) {
+          const newest = recent[0];
+         console.log('🎯 Auto-polling newest datasource:', newest.id);
+          setPendingDatasourceId(newest.id);
+        }
       } catch (err) {
         console.error("[poll] failed:", err);
       } finally {
-        setIsPolling(false);
+      setIsPolling(false);
       }
     };
-    pollActive();
-    const interval = setInterval(pollActive, 10000);
-    return () => clearInterval(interval);
-  }, [orgId]);
+  
+  pollActive();
+  const interval = setInterval(pollActive, 5000); // Poll faster
+  return () => clearInterval(interval);
+}, [orgId, pendingDatasourceId]); // Add pendingDatasourceId to dependencies
 
   const handleModalSuccess = (datasourceId: string) => {
     console.log("🎯 Starting poll for:", datasourceId);
