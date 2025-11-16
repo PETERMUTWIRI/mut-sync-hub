@@ -7,6 +7,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { redis, getDatasourceKey } from '@/lib/redis';
+import { getOrgProfileInternal } from '@/lib/org-profile'; // ✅ ADD THIS LINE
 import Papa from 'papaparse';
 
 export async function POST(req: NextRequest) {
@@ -22,9 +23,14 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     console.log('[process-file] Request body keys:', Object.keys(body));
+    
+    // ✅ Get orgId from profile (consistent)
     const profile = await getOrgProfileInternal();
     const orgId = profile.orgId;
     console.log('[process-file] Using orgId from profile:', orgId);
+
+    // ✅ Destructure AFTER getting orgId
+    const { datasourceId, fileUrl, config } = body;
 
     // Verify datasource
     const datasourceKey = getDatasourceKey(orgId, datasourceId);
@@ -102,7 +108,7 @@ export async function POST(req: NextRequest) {
     const result = await analyticsRes.json();
     console.log('[process-file] ✅ HF response received:', Object.keys(result));
 
-    // 4. Save to Redis (SAFE VERSION - no verification)
+    // 4. Save to Redis
     const liveKey = `orgs/${orgId}/live_ingestion/${datasourceId}`;
     console.log('[process-file] ➜ Saving to Redis key:', liveKey);
     
@@ -113,14 +119,14 @@ export async function POST(req: NextRequest) {
           ...result,
           createdAt: new Date().toISOString(),
         }), 
-        { ex: 300 }
+        { ex: 3600 } // 1 hour TTL
       );
-      console.log('[process-file] ✅ Redis save attempted (no verification)');
+      console.log('[process-file] ✅ Redis save attempted');
     } catch (redisErr) {
       console.error('[process-file] ⚠️ Redis save failed but continuing:', redisErr.message);
     }
 
-    // 5. Update datasource status (CRITICAL - don't skip)
+    // 5. Update datasource status
     console.log('[process-file] ➜ Updating datasource status...');
     await redis.set(datasourceKey, JSON.stringify({
       ...datasource,
@@ -142,7 +148,6 @@ export async function POST(req: NextRequest) {
 
   } catch (err: any) {
     console.error('[process-file] ❌ FATAL ERROR:', err.message);
-    console.error('[process-file] Stack trace:', err.stack);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
