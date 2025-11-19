@@ -50,10 +50,16 @@ export function FileUploadModal({ onClose, onSuccess }: {
         headers: { 'Content-Type': file.type },
       });
 
-      if (!uploadRes.ok) {
-        throw new Error(`Cloud upload failed: ${uploadRes.status}`);
-      }
+     // 🔍 DEBUG LOG - will show in browser console
+      console.log('[upload] Storj URL:', uploadUrl.split('?')[0]); // Don't log secrets
+      console.log('[upload] Status:', uploadRes.status);
+      console.log('[upload] StatusText:', uploadRes.statusText);
 
+      if (!uploadRes.ok) {
+        const errorText = await uploadRes.text(); // This contains Storj's error
+        console.error('[upload] Error body:', errorText); // 🔍 THIS IS THE KEY
+        throw new Error(`Cloud upload failed: ${uploadRes.status} - ${errorText.slice(0, 100)}`);
+      }
       console.log('[upload] ✅ file in Storj');
 
       // Step 3: Create datasource metadata
