@@ -1,627 +1,548 @@
+// app/analytics/cockpit/page.tsx
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { useUser } from '@stackframe/stack';
-import { useTranslation } from 'react-i18next';
-import { toast } from 'sonner';
-import { format, subDays } from 'date-fns';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  TrendingUp, BarChart3, PieChart as PieChartIcon, Calendar, Bell, Download, Clock, Plus, Sparkles, Zap, AlertTriangle,
-  Filter, ChevronRight, ShoppingCart, Store, HeartPulse, Factory, Bot, History, Play, X
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
+import { 
+  Package, AlertTriangle, TrendingUp, ShoppingCart, Zap, Sparkles, 
+  Bot, ChevronRight, Lightbulb, ShieldCheck, HeartPulse, Factory,
+  Clock, DollarSign, Thermometer, BarChart3, PieChartIcon, Calendar,
+  Activity, Users, Archive,Bell, Percent, CalendarDays, AlertOctagon,
+  Info, X, Menu, Send
 } from 'lucide-react';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell
+  LineChart, Line, BarChart, Bar, PieChart, Pie, AreaChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { ProgressCircle } from '@/components/ui/progress-circle';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { LiveIndicator } from '@/components/data-source/live-indicator';
-import { useDrillDown } from '@/lib/useDrillDown';
-import { useOrgProfile } from '@/hooks/useOrgProfile';
-import { enforceAnalyticsLimit } from '@/lib/billing';
-import { buildReportPDF } from "@/lib/buildReportPDF";
-import { PDFDocument, rgb } from "pdf-lib";
-import { Loader2 } from 'lucide-react';
 
-/* ------------------------------------------------------------------ */
-/* Types                                                              */
-/* ------------------------------------------------------------------ */
-type Industry = 'supermarket' | 'retail' | 'healthcare' | 'manufacturing';
-type AnalyticType = 'eda' | 'forecast' | 'basket' | 'market-dynamics' | 'supply-chain' | 'customer-insights' | 'operational-efficiency' | 'risk-assessment' | 'sustainability';
+// TYPES
+type Severity = 'critical' | 'warning' | 'info';
+type ChartType = 'line' | 'bar' | 'pie' | 'area';
 
-/* ------------------------------------------------------------------ */
-/* Service layer – talks to Python container                          */
-/* ------------------------------------------------------------------ */
-const analyticsAPI = {
-  live: (orgId: string) => Promise.resolve({}),
-  trend: (orgId: string) => Promise.resolve({}),
-  run: (orgId: string, analytic: AnalyticType, body: any) =>
-    fetch('/api/analytics/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId, analytic, ...body }) }).then(r => r.json()),
-  schedules: (orgId: string) => fetch(`/api/analytics/schedules?orgId=${orgId}`).then(r => r.json()),
-  history: (orgId: string, limit = 50) => fetch(`/api/analytics/history?orgId=${orgId}&limit=${limit}`).then(r => r.json()),
-  ai: (orgId: string, question: string, report: any) => fetch('/api/analytics/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orgId, question, report }) }).then(r => r.json()),
-  latest: (orgId: string) => fetch(`/analytics/report/latest?orgId=${orgId}`, { headers: { "x-api-key": process.env.NEXT_PUBLIC_ANALYTICS_KEY ?? "dev-analytics-key-123" } }).then(r => r.ok ? r.json() : null),
+interface KPIData {
+  id: string;
+  label: string;
+  value: string | number;
+  change: string;
+  icon: React.ElementType;
+  color: string;
+  alert?: boolean;
+  inverse?: boolean;
+}
+
+interface Insight {
+  id: string;
+  type: 'alert' | 'insight' | 'system';
+  severity: Severity;
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  action?: string;
+  data?: any;
+}
+
+interface ChartData {
+  type: ChartType;
+  title: string;
+  data: any[];
+}
+
+// ANIMATED NUMBER COMPONENT (No CSS needed)
+const AnimatedNumber = ({ value, prefix = "", suffix = "" }: { value: number; prefix?: string; suffix?: string }) => {
+  const spring = useSpring(value, { stiffness: 500, damping: 30 });
+  const display = useTransform(spring, (v) => `${prefix}${Math.round(v).toLocaleString()}${suffix}`);
+  
+  return <motion.h2 className="text-3xl font-bold">{display}</motion.h2>;
 };
-/* ------------------------------------------------------------------ */
-/* Hooks                                                              */
-/* ------------------------------------------------------------------ */
-function useLiveData(orgId: string) {
-  return useQuery({ queryKey: ['analytics-live', orgId], queryFn: () => analyticsAPI.live(orgId), refetchInterval: 5000, enabled: !!orgId });
-}
-function useTrendData(orgId: string) {
-  return useQuery({ queryKey: ['analytics-trend', orgId], queryFn: () => analyticsAPI.trend(orgId), enabled: !!orgId });
-}
-function useSchedules(orgId: string) {
-  return useQuery({ queryKey: ['analytics-schedules', orgId], queryFn: () => analyticsAPI.schedules(orgId), enabled: !!orgId });
-}
-function useHistory(orgId: string) {
-  return useQuery({ queryKey: ['analytics-history', orgId], queryFn: () => analyticsAPI.history(orgId), enabled: !!orgId });
-}
-function useLatestReport(orgId: string) {
-  return useQuery({ queryKey: ['analytics-latest', orgId], queryFn: () => analyticsAPI.latest(orgId), enabled: !!orgId });
-}
 
-
-/* ------------------------------------------------------------------ */
-/* Main Page – SUPERMARKET FIRST                                      */
-/* ------------------------------------------------------------------ */
-export default function AnalyticsPage() {
-  const { t } = useTranslation();
-  const user = useUser({ or: 'redirect' });
-  const qc = useQueryClient();
-  const { data: ctx } = useOrgProfile();
-  const orgId = ctx?.orgId ?? '';
-
-  // Industry picker – supermarket default
-  const [industry, setIndustry] = useState<Industry>('supermarket');
-  const [activeAnalytic, setActiveAnalytic] = useState<AnalyticType>('eda');
-
-  // Data states
-  const { data: live } = useLiveData(orgId);
-  const { data: trend } = useTrendData(orgId);
-  const { data: schedules } = useSchedules(orgId);
-  const { data: history } = useHistory(orgId);
-  const { data: latest } = useQuery({
-    queryKey: ['analytics-latest', orgId],
-    queryFn: () => analyticsAPI.latest(orgId),
-    enabled: !!orgId,
-  });
-
-  // Drill-down state
-  const drill = useDrillDown((trend as any[]) ?? []);
-
-  // AI chat state
-  const [question, setQuestion] = useState('');
-  const [aiReply, setAiReply] = useState<{ text: string; chart?: any } | null>(null);
-
-  // Schedule modal
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [cron, setCron] = useState('0 8 * * MON');
-
-  // Run analytic mutation
-  const runMut = useMutation({
-     mutationFn: (analytic: AnalyticType) => analyticsAPI.run(orgId, analytic, {}),
-     onSuccess: (data, variables) => {
-        qc.setQueryData(['analytics-results', orgId, variables], data);
-
-       
-        qc.setQueryData(['analytics-results', orgId, 'supermarket_kpis'], data.supermarket_kpis);
-
-        toast.success(`${variables} ready`);
-        qc.invalidateQueries({ queryKey: ['analytics-history', orgId] });
-     },
-    onError: () => toast.error('Analytic failed'),
-  });
-
-  // Schedule creator mutation
-  const createSchedMut = useMutation({
-    mutationFn: async (freq: 'daily' | 'weekly' | 'monthly' | string) => {
-      await enforceAnalyticsLimit(orgId, 'Analytics-Schedule');
-      const res = await fetch('/api/analytics/schedules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId, frequency: freq, analytics: ['eda', 'basket', 'forecast'] }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['analytics-schedules', orgId] });
-      toast.success('Schedule created');
-      setShowScheduleModal(false);
-      setCron(''); // reset custom field
-    },
-   onError: (e: any) => toast.error(e.message),
-  });
-
-  // AI ask mutation
-  const askAIMut = useMutation({
-    mutationFn: async (q: string) => {
-      const report = qc.getQueryData(['analytics-results', orgId, activeAnalytic]) as any;
-      return analyticsAPI.ai(orgId, q, report || { daily_sales: 0 });
-    },
-    onSuccess: setAiReply,
-  });
-
-  // Auto-run EDA on mount
-  useEffect(() => {
-    if (!orgId) return;
-    runMut.mutate('eda');
-  }, [orgId]);
-
-  // Industry icon helper
-  const industryIcons: Record<Industry, React.ReactNode> = {
-    supermarket: <ShoppingCart className="w-4 h-4" />,
-    retail: <Store className="w-4 h-4" />,
-    healthcare: <HeartPulse className="w-4 h-4" />,
-    manufacturing: <Factory className="w-4 h-4" />,
-  };
-
-  // Render helpers
- // line ~148  –  change variable name
-const analyticResults = qc.getQueryData(['analytics-results', orgId, activeAnalytic]) as any;
-
-  const supermarketKPIs = analyticResults?.supermarket_kpis;
-
-  const renderSupermarketKPIs = () =>
-    !supermarketKPIs ? null : (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-white/5 border border-white/10 rounded-xl p-4">
-          <CardContent>
-            <p className="text-xs text-gray-400">Stock on hand</p>
-            <p className="text-xl font-bold">{supermarketKPIs.stock_on_hand ?? 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white/5 border border-white/10 rounded-xl p-4">
-          <CardContent>
-            <p className="text-xs text-gray-400">Expiring ≤7 d</p>
-            <p className="text-xl font-bold text-amber-400">{supermarketKPIs.expiring_next_7_days ?? 0}</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white/5 border border-white/10 rounded-xl p-4">
-          <CardContent>
-            <p className="text-xs text-gray-400">Promo lift</p>
-            <p className="text-xl font-bold">{supermarketKPIs.promo_lift_pct ?? 0}%</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-white/5 border border-white/10 rounded-xl p-4">
-          <CardContent>
-            <p className="text-xs text-gray-400">Shrinkage</p>
-            <p className="text-xl font-bold text-red-400">{supermarketKPIs.shrinkage_pct ?? 0}%</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-
-  const renderChart = (type: 'bar' | 'line' | 'pie', data: any[]) => {
-    if (!data.length) return <p className="text-sm text-gray-400">No data</p>;
-    switch (type) {
-      case 'bar':
-        return (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data} onClick={(e) => e && drill.drill({ key: 'date', value: e.activeLabel ?? '' })}>
-              <CartesianGrid stroke="#2E7D7D" strokeOpacity={0.3} />
-              <XAxis dataKey="date" stroke="#9ca3af" />
-              <YAxis stroke="#9ca3af" />
-              <Tooltip contentStyle={{ backgroundColor: '#1E2A44', border: '1px solid #2E7D7D' }} />
-              <Bar dataKey="sales" fill="#10b981" cursor="pointer" />
-            </BarChart>
-          </ResponsiveContainer>
-        );
-      case 'line':
-        return (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data}>
-              <CartesianGrid stroke="#444" />
-              <XAxis dataKey="label" stroke="#9ca3af" />
-              <YAxis stroke="#9ca3af" />
-              <Tooltip contentStyle={{ backgroundColor: '#1E2A44', border: '1px solid #666' }} />
-              <Line type="monotone" dataKey="value" stroke="#A3BFFA" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        );
-      case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={100} fill="#8b5cf6" label>
-                {data.map((_, i) => (
-                  <Cell key={`cell-${i}`} fill={`#8b5cf6${Math.round((i / data.length) * 255).toString(16).padStart(2, '0')}`} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-      default:
-        return null;
-    }
-  };
-
-  // Drill breadcrumb
-  const Breadcrumb = () =>
-    drill.stack.length > 0 ? (
-      <div className="flex items-center gap-2 text-sm text-gray-300 mb-4">
-        <Button variant="ghost" size="sm" onClick={drill.pop}>
-          ← Back
-        </Button>
-        {drill.stack.map((s, i) => (
-          <span key={i} className="flex items-center gap-1">
-            <ChevronRight className="w-4 h-4" />
-            <span className="text-teal-400">{s.key} = {s.value}</span>
-          </span>
-        ))}
-      </div>
-    ) : null;
-
-  // Schedule popover
-    const SchedulePopover = () => {
-    const { createSchedMut, cron, setCron, setShowScheduleModal } = useScheduleMut(); // ← tiny wrapper below
-    return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button className="bg-gradient-to-r from-teal-500 to-cyan-400 text-white">
-            <Plus className="w-4 h-4 mr-2" /> Schedule
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="bg-[#1E2A44] border border-white/10 rounded-2xl p-4 w-80">
-          <h3 className="text-lg font-semibold mb-4">Schedule Reports</h3>
-
-          {/* Frequency buttons – highlight + spin */}
-          <div className="grid grid-cols-3 gap-2">
-            {(['daily', 'weekly', 'monthly'] as const).map((f) => (
-              <Button
-               key={f}
-                variant={createSchedMut.variables === f ? 'default' : 'outline'}
-                onClick={() => createSchedMut.mutate(f)}
-                  disabled={createSchedMut.isPending}
-              >
-                {createSchedMut.isPending && createSchedMut.variables === f ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                f
-                )}
-              </Button>
-           ))}
-          </div>
-
-         {/* Custom cron */}
-         <Input
-           value={cron}
-           onChange={(e) => setCron(e.target.value)}
-           placeholder="0 8 * * MON"
-           className="mt-4 bg-black/30 border-white/20"
-         />
-
-          {/* Save – real value + spin */}
-          <Button
-             className="mt-2 w-full"
-             onClick={() => createSchedMut.mutate(cron || 'daily')}
-             disabled={createSchedMut.isPending}
-           >
-           {createSchedMut.isPending ? (
-             <Loader2 className="w-4 h-4 animate-spin" />
-           ) : (
-              'Save Cron'
-           )}
-          </Button>
-
-          {/* Error banner */}
-          {createSchedMut.isError && (
-           <p className="text-xs text-red-400 mt-2">{createSchedMut.error.message}</p>
-         )}
-        </PopoverContent>
-      </Popover>
-    );
-  };
-
-  /* tiny hook wrapper – keeps parent component clean */
-  function useScheduleMut() {
-    const qc = useQueryClient();
-    const orgId = useOrgProfile().data?.orgId ?? '';
-    const [cron, setCron] = useState('');
-    const [showScheduleModal, setShowScheduleModal] = useState(false);
-
-    const createSchedMut = useMutation({
-      mutationFn: async (freq: 'daily' | 'weekly' | 'monthly' | string) => {
-       await enforceAnalyticsLimit(orgId, 'Analytics-Schedule');
-       const res = await fetch('/api/analytics/schedules', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orgId, frequency: freq, analytics: ['eda', 'basket', 'forecast'] }),
-        });
-        if (!res.ok) throw new Error(await res.text());
-        return res.json();
-      },
-     onSuccess: () => {
-       qc.invalidateQueries({ queryKey: ['analytics-schedules', orgId] });
-       toast.success('Schedule created');
-       setShowScheduleModal(false);
-        setCron('');
-      },
-      onError: (e: any) => toast.error(e.message),
-    });
-
-    return { createSchedMut, cron, setCron, setShowScheduleModal };
-  }
-
-  // History drawer
-  const HistoryDrawer = () => {
-    const [open, setOpen] = useState(false);
-    const [selected, setSelected] = useState<any>(null);
-    return (
-      <>
-        <Button onClick={() => setOpen(true)} variant="outline">
-          <History className="w-4 h-4 mr-2" /> History
-        </Button>
-        <AnimatePresence>
-          {open && (
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              className="fixed right-0 top-0 h-full w-96 bg-[#0B1120] border-l border-white/10 p-6 overflow-y-auto z-50"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Report History</h3>
-                <Button variant="ghost" onClick={() => setOpen(false)}>×</Button>
-              </div>
-              {history?.length ? (
-                history?.map((r: any) => (
-                 <Card key={r.id} className="mb-4 cursor-pointer hover:bg-white/10" onClick={() => setSelected(r)}>
-                    <CardContent className="pt-4">
-                      <p className="font-medium">{r.type} report</p>
-                      <p className="text-xs text-gray-400">{format(new Date(r.lastRun), 'PPp')}</p>
-                     </CardContent>
-                 </Card>
-                ))
-              ) : (
-             <p className="text-sm text-gray-400">No history yet.</p>
-              )}
-              {selected && (
-              <div className="mt-6">
-                 <h4 className="font-semibold mb-2">Results</h4>
-                 <pre className="text-xs bg-black/30 p-2 rounded overflow-auto">{JSON.stringify(selected.results, null, 2)}</pre>
-              </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </>
-    );
-  };
-
-  // Main render
-  if (!orgId) return <div className="p-6 text-gray-400">Loading analytics…</div>;
-
-  const results = qc.getQueryData(['analytics-results', orgId, activeAnalytic]) as any;
- 
+// KPI CARD COMPONENT
+const KPICard = ({ data, isLive }: { data: KPIData; isLive: boolean }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const isNegative = data.change.startsWith('-') && !data.inverse;
   
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-[#0B1120] to-[#1E2A44] text-white font-inter">
+    <motion.div
+      className="relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-5 cursor-pointer"
+      whileHover={{ scale: 1.02, borderColor: data.color }}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
+      layout
+    >
+      {/* Live indicator */}
+      {isLive && (
+        <motion.div 
+          className="absolute top-3 right-3 w-2 h-2 bg-teal-400 rounded-full"
+          animate={{ opacity: [1, 0.5, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        />
+      )}
+      
       {/* Header */}
-      <motion.header
+      <div className="flex items-start justify-between mb-3">
+        <data.icon className="w-6 h-6" style={{ color: data.color }} />
+        <motion.span 
+          className={`text-sm font-semibold px-2 py-1 rounded ${isNegative ? 'bg-red-500/20 text-red-400' : 'bg-teal-500/20 text-teal-400'}`}
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500 }}
+        >
+          {data.change}
+        </motion.span>
+      </div>
+      
+      {/* Value */}
+      <div className="space-y-1">
+        <p className="text-xs text-gray-400 uppercase tracking-wider">{data.label}</p>
+        {typeof data.value === 'number' ? (
+          <AnimatedNumber value={data.value} />
+        ) : (
+          <motion.h2 
+            className="text-3xl font-bold"
+            style={{ color: data.color }}
+            key={data.value}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {data.value}
+          </motion.h2>
+        )}
+      </div>
+      
+      {/* Alert badge */}
+      {data.alert && (
+        <motion.div
+          className="absolute -top-2 -right-2 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500 }}
+        >
+          <span className="text-xs font-bold">{data.alert}</span>
+        </motion.div>
+      )}
+      
+      {/* Hover actions */}
+      <AnimatePresence>
+        {isHovered && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="absolute -bottom-16 left-0 right-0 bg-black/80 backdrop-blur-sm rounded-lg p-3 z-10 border border-white/10"
+          >
+            <button 
+              onClick={() => drillDown(data.id)}
+              className="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1"
+            >
+              Drill Down <ChevronRight className="w-3 h-3" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+// INSIGHT CARD COMPONENT
+const InsightCard = ({ insight }: { insight: Insight }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  const severityStyles = {
+    critical: 'border-red-500/50 bg-red-500/10',
+    warning: 'border-amber-500/50 bg-amber-500/10',
+    info: 'border-cyan-500/50 bg-cyan-500/10'
+  };
+  
+  return (
+    <motion.div
+      className={`rounded-xl p-4 mb-3 cursor-pointer ${severityStyles[insight.severity]}`}
+      whileHover={{ scale: 1.01 }}
+      onClick={() => setIsExpanded(!isExpanded)}
+      layout
+    >
+      <div className="flex items-start gap-3">
+        <insight.icon className="w-5 h-5 mt-1 flex-shrink-0" />
+        <div className="flex-1">
+          <h4 className="font-semibold mb-1">{insight.title}</h4>
+          <p className="text-sm text-gray-300">{insight.description}</p>
+          
+          <AnimatePresence>
+            {isExpanded && insight.action && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-3"
+              >
+                <button className="bg-cyan-500/20 border border-cyan-500/50 rounded-lg px-3 py-2 text-sm text-cyan-400 hover:bg-cyan-500/30">
+                  {insight.action}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// CHART COMPONENT
+const ChartWrapper = ({ chart }: { chart: ChartData }) => {
+  const colors = ['#00D4FF', '#10B981', '#F59E0B', '#EF4444', '#A3BFFA'];
+  
+  return (
+    <Card className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
+      <CardHeader className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">{chart.title}</h3>
+        <button className="text-xs text-gray-400 hover:text-cyan-400 flex items-center gap-1">
+          <Info className="w-3 h-3" /> AI Explain
+        </button>
+      </CardHeader>
+      <CardContent className="h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          {chart.type === 'line' && (
+            <LineChart data={chart.data}>
+              <CartesianGrid stroke="#1E2A44" strokeDasharray="3 3" />
+              <XAxis dataKey="label" stroke="#9CA3AF" />
+              <YAxis stroke="#9CA3AF" />
+              <Tooltip contentStyle={{ backgroundColor: '#0B1120', border: '1px solid #1E2A44' }} />
+              <Line type="monotone" dataKey="value" stroke="#00D4FF" strokeWidth={2} dot={false} />
+            </LineChart>
+          )}
+          {chart.type === 'bar' && (
+            <BarChart data={chart.data}>
+              <CartesianGrid stroke="#1E2A44" strokeDasharray="3 3" />
+              <XAxis dataKey="label" stroke="#9CA3AF" />
+              <YAxis stroke="#9CA3AF" />
+              <Tooltip contentStyle={{ backgroundColor: '#0B1120', border: '1px solid #1E2A44' }} />
+              <Bar dataKey="value" fill="#10B981" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          )}
+          {chart.type === 'pie' && (
+            <PieChart>
+              <Tooltip contentStyle={{ backgroundColor: '#0B1120', border: '1px solid #1E2A44' }} />
+              <Pie data={chart.data} dataKey="value" nameKey="label" outerRadius={80}>
+                {chart.data.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                ))}
+              </Pie>
+            </PieChart>
+          )}
+          {chart.type === 'area' && (
+            <AreaChart data={chart.data}>
+              <CartesianGrid stroke="#1E2A44" strokeDasharray="3 3" />
+              <XAxis dataKey="label" stroke="#9CA3AF" />
+              <YAxis stroke="#9CA3AF" />
+              <Tooltip contentStyle={{ backgroundColor: '#0B1120', border: '1px solid #1E2A44' }} />
+              <Area type="monotone" dataKey="value" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.3} />
+            </AreaChart>
+          )}
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
+// MAIN COCKPIT PAGE
+export default function AnalyticsCockpit() {
+  // MOCK STATE - Replace with Redis pub/sub
+  const [industry, setIndustry] = useState('supermarket');
+  const [isIngesting, setIsIngesting] = useState(false);
+  const [ingestProgress, setIngestProgress] = useState(0);
+  const [aiInput, setAiInput] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // Mock KPIs (will come from Redis: analytics:{org_id})
+  const [kpis, setKpis] = useState<KPIData[]>([
+  { id: "stock_value", label: "Stock Value", value: 2400000, change: "+8%", icon: Package, color: "#10B981" }, // ✅ number
+  { id: "expiring", label: "Expiring <7d", value: 47, change: "-12%", icon: AlertTriangle, color: "#F59E0B", alert: true }, // ✅ number
+  { id: "daily_sales", label: "Today's Sales", value: 487000, change: "+15%", icon: TrendingUp, color: "#10B981" }, // ✅ number
+  { id: "shrinkage", label: "Shrinkage", value: "2.3%", change: "-0.5%", icon: Zap, color: "#EF4444", inverse: true }, // ✅ string
+  // ... rest
+  ]);
+  
+  // Mock AI feed (will come from Redis: ai_response:{org_id})
+  const [aiFeed, setAiFeed] = useState<Insight[]>([
+    {
+      id: "1",
+      type: "alert",
+      severity: "critical",
+      icon: AlertOctagon,
+      title: "🚨 Milk Stockout in 48h",
+      description: "Current: 23 units | Avg sales: 45 units/day. Lost revenue risk: KES 12,400",
+      action: "Create Purchase Order →"
+    },
+    {
+      id: "2", 
+      type: "insight",
+      severity: "info",
+      icon: Lightbulb,
+      title: "💡 Tuesday Promo Opportunity",
+      description: "Bakery sales 18% below avg. Run 'Buy 2 Get 1' promo?",
+      action: "Deploy Promo →"
+    },
+    {
+      id: "3",
+      type: "system", 
+      severity: "info",
+      icon: Bot,
+      title: "🤖 Autopilot Active",
+      description: "Next forecast run: 6:00 AM (2h 34m) | Tasks queued: 0"
+    }
+  ]);
+  
+  // Mock charts (will come from analytics cache)
+  const [charts, setCharts] = useState<ChartData[]>([
+    { type: 'line', title: 'Sales Trend (7d)', data: [{label:'Mon',value:450},{label:'Tue',value:380},{label:'Wed',value:520},{label:'Thu',value:490},{label:'Fri',value:610},{label:'Sat',value:700},{label:'Sun',value:650}] },
+    { type: 'bar', title: 'Category AOV', data: [{label:'Bakery',value:1240},{label:'Dairy',value:890},{label:'Produce',value:1100},{label:'Meat',value:2100}] },
+    { type: 'pie', title: 'Customer Segments', data: [{label:'VIP',value:30},{label:'Regular',value:45},{label:'New',value:25}] },
+    { type: 'area', title: 'Forecast (Next 7d)', data: [{label:'Mon',value:680},{label:'Tue',value:720},{label:'Wed',value:750},{label:'Thu',value:800},{label:'Fri',value:820},{label:'Sat',value:780},{label:'Sun',value:740}] }
+  ]);
+  
+  // Simulate ingestion
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsIngesting(true);
+      setIngestProgress(Math.random() * 100);
+      
+      // Simulate new data arriving
+      if (Math.random() > 0.7) {
+        setKpis(prev => prev.map(kpi => ({
+          ...kpi,
+          value: typeof kpi.value === 'number' ? kpi.value + Math.floor(Math.random() * 10) : kpi.value
+        })));
+      }
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  // Simulate AI feed updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAiFeed(prev => [prev[0], {
+        id: Date.now().toString(),
+        type: "insight",
+        severity: "warning",
+        icon: Sparkles,
+        title: "💡 New Insight",
+        description: "AI has detected a pattern in your data",
+        action: "View →"
+      }, prev[2]]);
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  // AI Query handler
+  const handleAIQuery = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && aiInput.trim()) {
+      // This will push to Redis: task_queue
+      console.log('AI Query:', aiInput);
+      setAiInput('');
+      
+      // Mock instant response
+      setAiFeed(prev => [{
+        id: Date.now().toString(),
+        type: "insight",
+        severity: "info",
+        icon: Bot,
+        title: `🤖 ${aiInput}`,
+        description: "Processing your query...",
+        action: "Waiting for response"
+      }, ...prev]);
+    }
+  };
+  
+  return (
+    <div className="min-h-screen bg-cockpit-bg text-white relative">
+      {/* Progress Bar (Ingestion) */}
+      <AnimatePresence>
+        {isIngesting && (
+          <motion.div
+            className="fixed top-0 left-0 right-0 h-1 bg-cyan-500 z-50"
+            initial={{ width: 0 }}
+            animate={{ width: `${ingestProgress}%` }}
+            exit={{ opacity: 0 }}
+          />
+        )}
+      </AnimatePresence>
+      
+      {/* Header */}
+      <motion.header 
+        className="sticky top-0 z-40 bg-black/50 backdrop-blur-xl border-b border-white/10 px-6 py-4"
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        className="sticky top-0 z-20 bg-black/30 backdrop-blur-xl border border-white/10 rounded-b-2xl px-6 py-4"
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-400 to-cyan-300 bg-clip-text text-transparent">Analytics</h1>
-            <p className="text-sm text-gray-400">{ctx?.firstName} • {ctx?.plan?.name} plan</p>
+        <div className="max-w-full flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="lg:hidden">
+              <Menu className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-2xl font-bold text-cyan-400">Analytics Cockpit</h1>
+              <p className="text-xs text-gray-400">org_synth_123 • PRO Tier</p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
-            <LiveIndicator live={!!(live as any)?.online} />
-            <HistoryDrawer />
-            <Bell className="w-5 h-5 text-teal-400 cursor-pointer" onClick={() => toast('Notifications coming soon')} />
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />
+              <span className="text-xs">Live</span>
+            </div>
+            <AlertTriangle className="w-5 h-5 text-amber-400" />
+            <Bell className="w-5 h-5 text-cyan-400" />
           </div>
         </div>
       </motion.header>
-
-      <main className="max-w-7xl mx-auto px-6 py-8 space-y-10">
-        {/* Industry & Analytic Picker */}
-        <Card className="bg-white/5 border border-white/10 rounded-2xl p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <Select value={industry} onValueChange={(v) => setIndustry(v as Industry)}>
-              <SelectTrigger className="w-48 bg-black/30 border-white/20 text-cyan-400">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1E2A44] border border-white/10 text-cyan-300">
-                <SelectItem value="supermarket">{industryIcons.supermarket} Supermarket</SelectItem>
-                <SelectItem value="retail">{industryIcons.retail} Retail</SelectItem>
-                <SelectItem value="healthcare">{industryIcons.healthcare} Healthcare</SelectItem>
-                <SelectItem value="manufacturing">{industryIcons.manufacturing} Manufacturing</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={activeAnalytic} onValueChange={(v) => setActiveAnalytic(v as AnalyticType)}>
-              <SelectTrigger className="w-48 bg-black/30 border-white/20 text-cyan-400">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1E2A44] border border-white/10 text-cyan-300">
-                <SelectItem value="eda">EDA</SelectItem>
-                <SelectItem value="forecast">Forecast</SelectItem>
-                <SelectItem value="basket">Basket</SelectItem>
-                <SelectItem value="market-dynamics">Market Dynamics</SelectItem>
-                <SelectItem value="supply-chain">Supply Chain</SelectItem>
-                <SelectItem value="customer-insights">Customer Insights</SelectItem>
-                <SelectItem value="operational-efficiency">Operational Efficiency</SelectItem>
-                <SelectItem value="risk-assessment">Risk Assessment</SelectItem>
-                <SelectItem value="sustainability">Sustainability</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={() => runMut.mutate(activeAnalytic)} disabled={runMut.isPending}>
-              <Play className="w-4 h-4 mr-2" /> {runMut.isPending ? 'Running…' : 'Run'}
-            </Button>
-            <SchedulePopover />
-          </div>
-        </Card>
-
-        {/* SUPERMARKET KPI RAIL – above old cards */}
-        {industry === 'supermarket' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <CardContent>
-               <p className="text-xs text-gray-400">Stock on hand</p>
-               <p className="text-xl font-bold">{supermarketKPIs?.stock_on_hand ?? 0}</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <CardContent>
-              <p className="text-xs text-gray-400">Expiring ≤7 d</p>
-              <p className="text-xl font-bold text-amber-400">{supermarketKPIs?.expiring_next_7_days ?? 0}</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <CardContent>
-              <p className="text-xs text-gray-400">Promo lift</p>
-              <p className="text-xl font-bold">{supermarketKPIs?.promo_lift_pct ?? 0}%</p>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/5 border border-white/10 rounded-xl p-4">
-            <CardContent>
-              <p className="text-xs text-gray-400">Shrinkage</p>
-              <p className="text-xl font-bold text-red-400">{supermarketKPIs?.shrinkage_pct ?? 0}%</p>
-           </CardContent>
-          </Card>
-        </div>
-        )}
-
-        {/* Old 4 KPI cards – still visible */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          <KPICard icon={<TrendingUp />} title="Daily Sales" value={`KES ${analyticResults?.daily_sales ?? 0}`} color="#10b981" />
-          <KPICard icon={<BarChart3 />} title="Items Sold" value={analyticResults?.daily_qty ?? 0} color="#10b981" />
-          <KPICard icon={<PieChartIcon />} title="Avg Basket" value={`KES ${analyticResults?.avg_basket ?? 0}`} color="#10b981" />
-          <KPICard icon={<Zap />} title="Status" value={(live as any)?.online ? 'Online' : 'Offline'} color={(live as any)?.online ? '#10b981' : '#ef4444'} pulse={(live as any)?.online} />
-        </div>
-
-        {/* Drill breadcrumb */}
-        <Breadcrumb />
-
-        {/* Charts */}
-        <Card className="bg-white/5 border border-white/10 rounded-2xl p-4">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">{activeAnalytic} <Filter className="w-4 h-4" /></CardTitle>
-          </CardHeader>
-          <CardContent>
-            {activeAnalytic === 'eda' && renderChart('bar', drill.filtered)}
-            {activeAnalytic === 'forecast' && renderChart('line', results?.forecast ?? [])}
-            {activeAnalytic === 'basket' && renderChart('pie', results?.product_associations ? Object.entries(results.product_associations.support).map(([k, v]) => ({ name: k, value: v })) : [])}
-            {['supply-chain', 'customer-insights', 'operational-efficiency', 'risk-assessment', 'sustainability'].includes(activeAnalytic) && (
-              <pre className="text-xs bg-black/30 p-3 rounded overflow-auto">{JSON.stringify(results, null, 2)}</pre>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* AI Chat with Visuals */}
-        <Card className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-6 border border-purple-500/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Bot className="w-5 h-5" /> Ask Newton Anything</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex gap-2 mb-4">
-              <Input
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                placeholder="E.g. Why did profit dip yesterday?"
-                className="bg-black/30 border-purple-500/50 text-white"
-                onKeyDown={(e) => e.key === 'Enter' && askAIMut.mutate(question)}
-              />
-              <Button onClick={() => askAIMut.mutate(question)} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                Ask
-              </Button>
-            </div>
-            <AnimatePresence>
-              {aiReply && (
+      
+      {/* Main Layout */}
+      <div className="flex h-screen pt-16">
+        {/* AI Command Feed Sidebar */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.aside
+              className="w-80 bg-cockpit-panel/50 backdrop-blur-xl border-r border-white/10 p-4 overflow-y-auto"
+              initial={{ x: -320, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -320, opacity: 0 }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-cyan-400">AI Command Feed</h2>
+                <Sparkles className="w-4 h-4 text-cyan-400" />
+              </div>
+              
+              <div className="space-y-2">
+                {aiFeed.map(insight => (
+                  <InsightCard key={insight.id} insight={insight} />
+                ))}
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
+        
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {/* Industry Selector */}
+          <motion.div 
+            className="mb-6 flex items-center gap-3"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <select 
+              className="bg-cockpit-panel border border-white/10 rounded-lg px-3 py-2 text-sm"
+              value={industry}
+              onChange={(e) => setIndustry(e.target.value)}
+            >
+              <option value="supermarket">🏪 Supermarket</option>
+              <option value="manufacturing">🏭 Manufacturing</option>
+              <option value="pharmaceutical">💊 Pharmaceutical</option>
+              <option value="wholesale">📦 Wholesale</option>
+            </select>
+            <span className="text-xs text-gray-400">Live data from DuckDB</span>
+          </motion.div>
+          
+          {/* KPI Rail */}
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+              {kpis.map((kpi, i) => (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="text-sm text-gray-200 bg-black/20 rounded-lg p-4"
+                  key={kpi.id}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.4 + i * 0.1 }}
                 >
-                  {aiReply.text}
-                  {aiReply.chart && renderChart(aiReply.chart.type, aiReply.chart.data)}
+                  <KPICard data={kpi} isLive={isIngesting} />
                 </motion.div>
-              )}
-            </AnimatePresence>
-          </CardContent>
-        </Card>
-
-        {/* Scheduled Reports List */}
-        <Card className="bg-white/5 border border-white/10 rounded-2xl p-4">
-           <CardHeader>
-              <CardTitle>Latest Report</CardTitle>
-           </CardHeader>
-           <CardContent>
-             {latest ? (
-                <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                     <div>
-                       <p className="font-medium">{latest.type}</p>
-                       <p className="text-xs text-gray-400">Ran: {format(new Date(latest.lastRun), "PPp")}</p>
-                     </div>
-                     <Clock className="w-4 h-4 text-teal-400" />
-                    </div>
-
-                    {/* KPI table */}
-                    <div className="text-sm bg-black/30 p-3 rounded overflow-auto max-h-48">
-                      {Object.entries(latest.results?.supermarket_kpis || latest.results).map(([k, v]) => (
-                       <div key={k} className="flex justify-between py-1 border-b border-white/10 last:border-0">
-                         <span className="text-gray-300">{k.replace(/_/g, " ")}</span>
-                         <span className="text-white font-semibold">{String(v)}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* PDF download */}
-                    <button
-                      onClick={async () => {
-                        const bytes = await buildReportPDF(latest);
-                        const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: "application/pdf" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `${latest.type}-report-${latest.orgId}.pdf`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                        }}
-                      className="inline-flex items-center gap-2 mt-3 px-3 py-1 bg-teal-500 text-white rounded hover:bg-teal-600"
-                      >
-                      <Download className="w-4 h-4" /> Download PDF
-                     </button>
-                </div> 
-              ) : (
-               <p className="text-sm text-gray-400">No report yet – run an analytic above.</p>
-              )}
-            </CardContent>
-          </Card>
-      </main>
+              ))}
+            </div>
+          </motion.section>
+          
+          {/* Chart Grid */}
+          <motion.section
+            className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+          >
+            {charts.map((chart, i) => (
+              <motion.div
+                key={chart.title}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.7 + i * 0.15 }}
+              >
+                <ChartWrapper chart={chart} />
+              </motion.div>
+            ))}
+          </motion.section>
+        </main>
+      </div>
+      
+      {/* Command Bar */}
+      <motion.div 
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl z-40"
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.8, type: "spring" }}
+      >
+        <div className="bg-black/70 backdrop-blur-xl border border-cyan-400/30 rounded-2xl p-3 flex items-center gap-3 shadow-2xl">
+          <Bot className="w-5 h-5 text-cyan-400" />
+          <input
+            type="text"
+            value={aiInput}
+            onChange={(e) => setAiInput(e.target.value)}
+            onKeyDown={handleAIQuery}
+            placeholder='Ask anything... (e.g., "Why did sales drop yesterday?")'
+            className="flex-1 bg-transparent border-0 text-white placeholder:text-gray-400 focus:outline-none"
+          />
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <kbd className="px-1 py-0.5 bg-white/10 rounded">⌘</kbd>
+            <span>K</span>
+          </div>
+        </div>
+      </motion.div>
+      
+      {/* Status Bar */}
+      <motion.div 
+        className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-xl border-t border-white/10 px-6 py-2 text-xs text-gray-400 flex items-center justify-between"
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.9 }}
+      >
+        <div className="flex items-center gap-4">
+          <StatusIndicator label="DuckDB" status="healthy" />
+          <StatusIndicator label="Redis" status="healthy" />
+          <StatusIndicator label="LLM" status="loading" />
+          <div className="w-px h-3 bg-white/10" />
+          <span>Last: 2s ago</span>
+          <span>Next: 6:00 AM (2h 34m)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-teal-400">org_synth_123</span>
+          <span className="text-amber-400">Tier: PRO</span>
+          <span>Credits: 1,450</span>
+        </div>
+      </motion.div>
     </div>
   );
-}
+};
 
-/* ------------------------------------------------------------------ */
-/* Sub-components                                                     */
-/* ------------------------------------------------------------------ */
-const KPICard = ({ icon, title, value, color, pulse }: { icon: React.ReactNode; title: string; value: string | number; color?: string; pulse?: boolean }) => (
-  <motion.div whileHover={{ scale: 1.02 }} className="bg-white/5 border border-white/10 rounded-xl p-6 shadow-lg">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm text-gray-400">{title}</p>
-        <p className={`text-2xl font-bold ${pulse ? 'animate-pulse' : ''}`} style={{ color }}>
-          {value}
-        </p>
-      </div>
-      <div className="text-2xl" style={{ color }}>
-        {icon}
-      </div>
+// HELPERS
+const StatusIndicator = ({ label, status }: { label: string; status: 'healthy' | 'loading' | 'error' }) => {
+  const color = status === 'healthy' ? 'bg-teal-400' : status === 'loading' ? 'bg-amber-400 animate-pulse' : 'bg-red-400';
+  
+  return (
+    <div className="flex items-center gap-2">
+      <div className={`w-2 h-2 rounded-full ${color}`} />
+      <span>{label}</span>
     </div>
-  </motion.div>
-);
+  );
+};
+
+// PLACEHOLDER FUNCTIONS (Replace with real logic)
+const drillDown = (kpiId: string) => console.log('Drill down:', kpiId);
