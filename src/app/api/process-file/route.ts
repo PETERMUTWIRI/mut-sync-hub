@@ -7,15 +7,35 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from 'next/server';
 import { redis, getDatasourceKey } from '@/lib/redis';
-import { getOrgProfileInternal } from '@/lib/org-profile'; // ✅ ADD THIS LINE
+import { getOrgProfileInternal } from '@/lib/org-profile';
 import Papa from 'papaparse';
+
+// ✅ NEW: Helper to detect delimiter automatically
+function detectDelimiter(csvText: string, filename: string): string {
+  // Check first line for tabs
+  const firstLine = csvText.split('\n')[0];
+  if (firstLine.includes('\t')) {
+    console.log('[detectDelimiter] ✅ Detected TAB delimiter');
+    return '\t';
+  }
+  if (firstLine.includes(';')) {
+    console.log('[detectDelimiter] ✅ Detected SEMICOLON delimiter');
+    return ';';
+  }
+  console.log('[detectDelimiter] ✅ Defaulting to COMMA delimiter');
+  return ',';
+}
+
+// ✅ NEW: Helper to get file extension
+function getFileExtension(filename: string): string {
+  return filename.split('.').pop()?.toLowerCase() || '';
+}
 
 export async function POST(req: NextRequest) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('[process-file] ➜ QSTASH JOB STARTED');
 
   try {
-    // Validate env vars
     if (!process.env.ANALYTICS_ENGINE_URL || !process.env.ANALYTICS_ENGINE_API_KEY) {
       console.error('[process-file] ❌ Missing ANALYTICS_ENGINE_URL or ANALYTICS_ENGINE_API_KEY');
       return NextResponse.json({ error: 'Analytics engine not configured' }, { status: 500 });
@@ -24,15 +44,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     console.log('[process-file] Request body keys:', Object.keys(body));
     
-    // ✅ Get orgId from profile (consistent)
     const profile = await getOrgProfileInternal();
     const orgId = profile.orgId;
     console.log('[process-file] Using orgId from profile:', orgId);
 
-    // ✅ Destructure AFTER getting orgId
     const { datasourceId, fileUrl, config } = body;
 
-    // Verify datasource
     const datasourceKey = getDatasourceKey(orgId, datasourceId);
     console.log('[process-file] Fetching datasource from key:', datasourceKey);
     
@@ -44,42 +61,68 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Datasource not found' }, { status: 404 });
     }
 
-    console.log('[process-file] ✓ Datasource verified:', datasource.name);
+    console.log('[process-file] ✓ Datasource verified:', datasource.name, 'Type:', datasource.type);
 
-    // 1. Download file from Storj
+    // 1. Download file
     console.log('[process-file] ➜ Downloading file...');
     const fileRes = await fetch(fileUrl);
     if (!fileRes.ok) throw new Error(`Download failed: ${fileRes.status}`);
-    const csvText = await fileRes.text();
-    console.log('[process-file] ✓ File downloaded:', csvText.length, 'bytes');
+    const fileContent = await fileRes.text();
+    console.log('[process-file] ✓ File downloaded:', fileContent.length, 'bytes');
+    console.log('[process-file] 🔍 First 200 chars:', fileContent.substring(0, 200));
 
-    // 2. Parse CSV to JSON
-    console.log('[process-file] ➜ Parsing CSV...');
-    const parsed = Papa.parse(csvText, {
-      header: config.hasHeaders ?? true,
-      delimiter: config.delimiter || ',',
-      skipEmptyLines: true,
-      dynamicTyping: true,
-      transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, '_'),
-    });
+    // 2. Detect file type and parse
+    const fileExt = getFileExtension(datasource.name);
+    console.log('[process-file] File extension:', fileExt);
+    
+    let rows = [];
+    
+    if (fileExt === 'csv' || fileExt === 'txt') {
+      // ✅ CRITICAL: Auto-detect delimiter
+      const delimiter = config.delimiter || detectDelimiter(fileContent, datasource.name);
+      console.log('[process-file] Using delimiter:', JSON.stringify(delimiter));
+      
+      const parsed = Papa.parse(fileContent, {
+        header: config.hasHeaders ?? true,
+        delimiter: delimiter,
+        skipEmptyLines: true,
+        dynamicTyping: false, // ✅ Safer: prevent unwanted type coercion
+        transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, '_'),
+      });
 
-    if (parsed.errors.length > 0) {
-      throw new Error(`CSV parse failed: ${parsed.errors[0].message}`);
+      if (parsed.errors.length > 0) {
+        console.error('[process-file] ❌ CSV parse errors:', parsed.errors);
+        throw new Error(`CSV parse failed: ${parsed.errors[0].message}`);
+      }
+      
+      rows = parsed.data;
+      console.log('[process-file] ✓ CSV parsed:', rows.length, 'rows');
+      
+      // ✅ DEBUG: Show first row and column count
+      if (rows.length > 0) {
+        console.log('[process-file] 🔍 FIRST ROW:', JSON.stringify(rows[0]));
+        console.log('[process-file] 🔍 COLUMN COUNT:', Object.keys(rows[0]).length);
+        console.log('[process-file] 🔍 COLUMN NAMES:', Object.keys(rows[0]));
+      }
+      
+    } else if (fileExt === 'xml') {
+      console.log('[process-file] XML parsing not yet implemented');
+      return NextResponse.json({ error: 'XML files not supported yet' }, { status: 400 });
+      
+    } else {
+      throw new Error(`Unsupported file type: ${fileExt}`);
     }
 
-    const rows = parsed.data;
-    console.log('[process-file] ✓ CSV parsed:', rows.length, 'rows');
-
-    // 3. Call HF analytics engine
+    // 3. Call HF engine
     const ANALYTICS_API_KEY = process.env.ANALYTICS_ENGINE_API_KEY;
     const analyticsUrl = `${process.env.ANALYTICS_ENGINE_URL}/api/v1/datasources/json`;
     const queryParams = new URLSearchParams({
       orgId,
       sourceId: datasourceId,
-      type: 'FILE_IMPORT'
+      type: datasource.type
     });
 
-    console.log('[process-file] ➜ Calling HF engine...');
+    console.log('[process-file] ➜ Calling HF engine with', rows.length, 'rows...');
     
     const analyticsRes = await fetch(`${analyticsUrl}?${queryParams}`, {
       method: 'POST',
@@ -94,6 +137,7 @@ export async function POST(req: NextRequest) {
           delimiter: config.delimiter,
           hasHeaders: config.hasHeaders,
           source: 'STORJ',
+          fileType: fileExt,
         },
         data: rows,
       }),
@@ -106,7 +150,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await analyticsRes.json();
-    console.log('[process-file] ✅ HF response received:', Object.keys(result));
+    console.log('[process-file] ✅ HF response received');
 
     // 4. Save to Redis
     const liveKey = `orgs/${orgId}/live_ingestion/${datasourceId}`;
@@ -119,7 +163,7 @@ export async function POST(req: NextRequest) {
           ...result,
           createdAt: new Date().toISOString(),
         }), 
-        { ex: 3600 } // 1 hour TTL
+        { ex: 3600 }
       );
       console.log('[process-file] ✅ Redis save attempted');
     } catch (redisErr) {
@@ -133,6 +177,7 @@ export async function POST(req: NextRequest) {
       status: 'PROCESSED',
       processedAt: new Date().toISOString(),
       transmittedRows: rows.length,
+      transmittedColumns: Object.keys(rows[0] || {}).length,
     }));
     console.log('[process-file] ✅ Datasource status updated');
 
@@ -143,6 +188,7 @@ export async function POST(req: NextRequest) {
       success: true, 
       datasourceId, 
       rows: rows.length,
+      columns: Object.keys(rows[0] || {}).length,
       message: 'Processing completed'
     });
 
