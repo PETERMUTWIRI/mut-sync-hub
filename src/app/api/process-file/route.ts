@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     const queryParams = new URLSearchParams({
       orgId,
       sourceId: datasourceId,
-      type: datasource.type
+      type: datasource.config.type
     });
 
     console.log('[process-file] ➜ Calling HF engine with', rows.length, 'rows...');
