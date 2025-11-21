@@ -113,14 +113,14 @@ export async function POST(req: NextRequest) {
       // 2. Detect file type and parse
     const filenameFromUrl = fileUrl.split('/').pop() || '';
     const cleanFilename = filenameFromUrl.split('?')[0]; 
-    const fileExt = getFileExtension(filenameFromUrl);     // ✅ FIXED
+    const fileExt = getFileExtension(cleanFilename);     // ✅ FIXED
     console.log('[process-file] File extension:', fileExt);
 
     let rows = [];
 
     if (fileExt === 'csv' || fileExt === 'txt') {
-     // ✅ Use filenameFromUrl instead of datasource.name
-    const delimiter = config.delimiter || detectDelimiter(fileContent, filenameFromUrl);
+     
+    const delimiter = config.delimiter || detectDelimiter(fileContent, cleanFilename);
     console.log('[process-file] Using delimiter:', JSON.stringify(delimiter));
   
     const parsed = Papa.parse(fileContent, {
