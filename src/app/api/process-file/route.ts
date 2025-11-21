@@ -111,7 +111,6 @@ export async function POST(req: NextRequest) {
     console.log('[process-file] 🔍 First 200 chars:', fileContent.substring(0, 200));
 
       // 2. Detect file type and parse
-    const filenameFromUrl = fileUrl.split('/').pop() || ''; // ✅ NEW
     const filenameFromUrl = fileUrl.split('/').pop() || '';
     const cleanFilename = filenameFromUrl.split('?')[0]; 
     const fileExt = getFileExtension(filenameFromUrl);     // ✅ FIXED
