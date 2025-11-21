@@ -110,58 +110,56 @@ export async function POST(req: NextRequest) {
     console.log('[process-file] ✓ File downloaded:', fileContent.length, 'bytes');
     console.log('[process-file] 🔍 First 200 chars:', fileContent.substring(0, 200));
 
-    // 2. Detect file type and parse
-    const fileExt = getFileExtension(datasource.name);
+      // 2. Detect file type and parse
+    const filenameFromUrl = fileUrl.split('/').pop() || ''; // ✅ NEW
+    const fileExt = getFileExtension(filenameFromUrl);     // ✅ FIXED
     console.log('[process-file] File extension:', fileExt);
-    
+
     let rows = [];
-    
+
     if (fileExt === 'csv' || fileExt === 'txt') {
-      // ✅ CRITICAL: Auto-detect delimiter
-      const delimiter = config.delimiter || detectDelimiter(fileContent, datasource.name);
-      console.log('[process-file] Using delimiter:', JSON.stringify(delimiter));
-      
-      const parsed = Papa.parse(fileContent, {
-        header: config.hasHeaders ?? true,
-        delimiter: delimiter,
-        skipEmptyLines: true,
-        dynamicTyping: false, // ✅ Safer: prevent unwanted type coercion
-        transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, '_'),
-      });
-
-      if (parsed.errors.length > 0) {
-        console.error('[process-file] ❌ CSV parse errors:', parsed.errors);
-        throw new Error(`CSV parse failed: ${parsed.errors[0].message}`);
-      }
-      
-      rows = parsed.data;
-      console.log('[process-file] ✓ CSV parsed:', rows.length, 'rows');
-      
-      // ✅ DEBUG: Show first row and column count
-      if (rows.length > 0) {
-        console.log('[process-file] 🔍 FIRST ROW:', JSON.stringify(rows[0]));
-        console.log('[process-file] 🔍 COLUMN COUNT:', Object.keys(rows[0]).length);
-        console.log('[process-file] 🔍 COLUMN NAMES:', Object.keys(rows[0]));
-      }
-      
-    } else if (fileExt === 'xml') {
-      // ✅ NEW: Parse XML using your new function
-       console.log('[process-file] ➜ Parsing XML...');
-      rows = parseXmlToRows(fileContent);
-      console.log('[process-file] ✓ XML parsed:', rows.length, 'rows');
-      
-    } else {
-      throw new Error(`Unsupported file type: ${fileExt}`);
-    }
-
-    // 3. Call HF engine
-    const ANALYTICS_API_KEY = process.env.ANALYTICS_ENGINE_API_KEY;
-    const analyticsUrl = `${process.env.ANALYTICS_ENGINE_URL}/api/v1/datasources/json`;
-    const queryParams = new URLSearchParams({
-      orgId,
-      sourceId: datasourceId,
-      type: type
+     // ✅ Use filenameFromUrl instead of datasource.name
+    const delimiter = config.delimiter || detectDelimiter(fileContent, filenameFromUrl);
+    console.log('[process-file] Using delimiter:', JSON.stringify(delimiter));
+  
+    const parsed = Papa.parse(fileContent, {
+       header: config.hasHeaders ?? true,
+       delimiter: delimiter,
+       skipEmptyLines: true,
+      dynamicTyping: false,
+       transformHeader: (h) => h.trim().toLowerCase().replace(/\s+/g, '_'),
     });
+
+    if (parsed.errors.length > 0) {
+      throw new Error(`CSV parse failed: ${parsed.errors[0].message}`);
+    }
+  
+    rows = parsed.data;
+    console.log('[process-file] ✓ CSV parsed:', rows.length, 'rows');
+  
+  // ✅ Debug logging
+  if (rows.length > 0) {
+    console.log('[process-file] 🔍 FIRST ROW:', JSON.stringify(rows[0]));
+    console.log('[process-file] 🔍 COLUMN COUNT:', Object.keys(rows[0]).length);
+    console.log('[process-file] 🔍 COLUMN NAMES:', Object.keys(rows[0]));
+  } 
+  
+  } else if (fileExt === 'xml') {
+    console.log('[process-file] ⚠️ XML parsing not yet implemented');
+    return NextResponse.json({ error: 'XML files not supported yet' }, { status: 400 });
+  
+  } else {
+    throw new Error(`Unsupported file type: ${fileExt}`);
+  }
+
+  // 3. Call HF engine
+  const ANALYTICS_API_KEY = process.env.ANALYTICS_ENGINE_API_KEY;
+  const analyticsUrl = `${process.env.ANALYTICS_ENGINE_URL}/api/v1/datasources/json`;
+  const queryParams = new URLSearchParams({
+    orgId,
+    sourceId: datasourceId,
+    type: type  // ✅ This is already correct!
+  });
 
     console.log('[process-file] ➜ Calling HF engine with', rows.length, 'rows...');
     
