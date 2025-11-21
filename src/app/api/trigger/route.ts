@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
         datasourceId,
         orgId,
         fileUrl: datasource.config.fileUrl,
+        type: datasource.type,
         config: {
           delimiter: datasource.config.delimiter || ',',
           hasHeaders: datasource.config.hasHeaders ?? true,

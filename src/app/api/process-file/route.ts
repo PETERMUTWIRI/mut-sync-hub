@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { redis, getDatasourceKey } from '@/lib/redis';
 import { getOrgProfileInternal } from '@/lib/org-profile';
 import Papa from 'papaparse';
+import { XMLParser } from 'fast-xml-parser';
 
 // ✅ NEW: Helper to detect delimiter automatically
 function detectDelimiter(csvText: string, filename: string): string {
@@ -30,7 +31,45 @@ function detectDelimiter(csvText: string, filename: string): string {
 function getFileExtension(filename: string): string {
   return filename.split('.').pop()?.toLowerCase() || '';
 }
+function parseXmlToRows(xmlText: string): any[] {
+  console.log('[parseXmlToRows] Converting XML to row format...');
+  
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: '',
+    textNodeName: 'value',
+    trimValues: true,
+    parseAttributeValue: true,
+  });
 
+  const parsed = parser.parse(xmlText);
+  
+  // Handle common XML structures
+  // Case 1: Root with array of records
+  if (parsed.root && Array.isArray(parsed.root.record)) {
+    return parsed.root.record;
+  }
+  
+  // Case 2: Direct array of objects
+  if (Array.isArray(parsed)) {
+    return parsed;
+  }
+  
+  // Case 3: Single record wrapper
+  if (parsed.record) {
+    return [parsed.record];
+  }
+  
+  // Case 4: Flat structure with repeating elements
+  const keys = Object.keys(parsed);
+  for (const key of keys) {
+    if (Array.isArray(parsed[key])) {
+      return parsed[key];
+    }
+  }
+  
+  throw new Error('XML format not recognized - expected array of records');
+}
 export async function POST(req: NextRequest) {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('[process-file] ➜ QSTASH JOB STARTED');
@@ -48,7 +87,7 @@ export async function POST(req: NextRequest) {
     const orgId = profile.orgId;
     console.log('[process-file] Using orgId from profile:', orgId);
 
-    const { datasourceId, fileUrl, config } = body;
+    const { datasourceId, fileUrl, config, type } = body;
 
     const datasourceKey = getDatasourceKey(orgId, datasourceId);
     console.log('[process-file] Fetching datasource from key:', datasourceKey);
@@ -106,8 +145,10 @@ export async function POST(req: NextRequest) {
       }
       
     } else if (fileExt === 'xml') {
-      console.log('[process-file] XML parsing not yet implemented');
-      return NextResponse.json({ error: 'XML files not supported yet' }, { status: 400 });
+      // ✅ NEW: Parse XML using your new function
+       console.log('[process-file] ➜ Parsing XML...');
+      rows = parseXmlToRows(fileContent);
+      console.log('[process-file] ✓ XML parsed:', rows.length, 'rows');
       
     } else {
       throw new Error(`Unsupported file type: ${fileExt}`);
@@ -119,7 +160,7 @@ export async function POST(req: NextRequest) {
     const queryParams = new URLSearchParams({
       orgId,
       sourceId: datasourceId,
-      type: datasource.config.type
+      type: type
     });
 
     console.log('[process-file] ➜ Calling HF engine with', rows.length, 'rows...');
