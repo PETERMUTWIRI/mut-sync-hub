@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/lib/prisma';
+
 
 export async function getSessionOrg(req: NextRequest): Promise<string | null> {
   const cookie = req.headers.get('cookie') ?? '';

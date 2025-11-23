@@ -11,5 +11,3 @@ export const redis = new Redis({
 export const getDatasourceKey = (orgId: string, datasourceId: string) => 
   `datasource:${orgId}:${datasourceId}`;
 
-// ⚠️ REMOVE THIS - Not needed for QStash architecture
-// export const bullMqConnection = new IORedis(...);

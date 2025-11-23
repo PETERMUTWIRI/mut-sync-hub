@@ -1,14 +1,14 @@
 // app/analytics/cockpit/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion';
 import { 
   Package, AlertTriangle, TrendingUp, ShoppingCart, Zap, Sparkles, 
   Bot, ChevronRight, Lightbulb, ShieldCheck, HeartPulse, Factory,
-  Clock, DollarSign, Thermometer, BarChart3, PieChartIcon, Calendar,
-  Activity, Users, Archive,Bell, Percent, CalendarDays, AlertOctagon,
-  Info, X, Menu, Send
+  Clock, DollarSign, Calendar, BarChart3, Info, X, Menu, RefreshCw,
+  Users, CreditCard, ShoppingBag, TrendingDown, Box, AlertCircle,
+  Activity, Target, Truck, ChartLine, PieChartIcon, BarChartIcon
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import {
@@ -16,9 +16,21 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 
-// TYPES
+import { useAnalyticsPoll } from '@/hooks/useAnalyticsPoll';
+import { getOrgProfileInternal } from '@/lib/org-profile';
+
+// ── TYPE DEFINITIONS ────────────────────────────────────────────────────
+
+interface OrgProfile {
+  userId: string;
+  orgId: string;
+  role: string;
+  plan: string;
+}
+
 type Severity = 'critical' | 'warning' | 'info';
 type ChartType = 'line' | 'bar' | 'pie' | 'area';
+type Category = 'realtime' | 'financial' | 'inventory' | 'customer' | 'predictive';
 
 interface KPIData {
   id: string;
@@ -29,17 +41,19 @@ interface KPIData {
   color: string;
   alert?: boolean;
   inverse?: boolean;
+  data?: any[];
+  category: Category;
+  meta?: Record<string, any>;
 }
 
 interface Insight {
   id: string;
-  type: 'alert' | 'insight' | 'system';
+  type: keyof typeof INSIGHT_ICONS;
   severity: Severity;
   icon: React.ElementType;
   title: string;
   description: string;
   action?: string;
-  data?: any;
 }
 
 interface ChartData {
@@ -48,16 +62,42 @@ interface ChartData {
   data: any[];
 }
 
-// ANIMATED NUMBER COMPONENT (No CSS needed)
-const AnimatedNumber = ({ value, prefix = "", suffix = "" }: { value: number; prefix?: string; suffix?: string }) => {
+// ── CONSTANTS ────────────────────────────────────────────────────────────
+
+const INSIGHT_ICONS: Record<string, React.ElementType> = {
+  alert: AlertTriangle,
+  insight: Lightbulb,
+  system: Bot,
+};
+
+const SEVERITY_STYLES: Record<Severity, string> = {
+  critical: 'border-red-500/50 bg-red-500/10',
+  warning: 'border-amber-500/50 bg-amber-500/10',
+  info: 'border-cyan-500/50 bg-cyan-500/10',
+};
+
+const CATEGORY_CONFIG: Record<Category, { label: string; icon: React.ElementType; color: string }> = {
+  realtime: { label: 'Real-Time', icon: Zap, color: '#00D4FF' },
+  financial: { label: 'Financial', icon: DollarSign, color: '#10B981' },
+  inventory: { label: 'Inventory', icon: Package, color: '#F59E0B' },
+  customer: { label: 'Customers', icon: Users, color: '#A3BFFA' },
+  predictive: { label: 'AI Alerts', icon: Bot, color: '#EF4444' },
+};
+
+// ── COMPONENTS ──────────────────────────────────────────────────────────
+
+const AnimatedNumber = ({ value }: { value: number }) => {
   const spring = useSpring(value, { stiffness: 500, damping: 30 });
-  const display = useTransform(spring, (v) => `${prefix}${Math.round(v).toLocaleString()}${suffix}`);
+  const display = useTransform(spring, (v) => Math.round(v).toLocaleString());
   
   return <motion.h2 className="text-3xl font-bold">{display}</motion.h2>;
 };
 
-// KPI CARD COMPONENT
-const KPICard = ({ data, isLive }: { data: KPIData; isLive: boolean }) => {
+const KPICard = ({ data, isLive, onClick }: { 
+  data: KPIData; 
+  isLive: boolean;
+  onClick: () => void;
+}) => {
   const [isHovered, setIsHovered] = useState(false);
   const isNegative = data.change.startsWith('-') && !data.inverse;
   
@@ -67,9 +107,9 @@ const KPICard = ({ data, isLive }: { data: KPIData; isLive: boolean }) => {
       whileHover={{ scale: 1.02, borderColor: data.color }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
+      onClick={onClick}
       layout
     >
-      {/* Live indicator */}
       {isLive && (
         <motion.div 
           className="absolute top-3 right-3 w-2 h-2 bg-teal-400 rounded-full"
@@ -78,11 +118,12 @@ const KPICard = ({ data, isLive }: { data: KPIData; isLive: boolean }) => {
         />
       )}
       
-      {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <data.icon className="w-6 h-6" style={{ color: data.color }} />
         <motion.span 
-          className={`text-sm font-semibold px-2 py-1 rounded ${isNegative ? 'bg-red-500/20 text-red-400' : 'bg-teal-500/20 text-teal-400'}`}
+          className={`text-sm font-semibold px-2 py-1 rounded ${
+            isNegative ? 'bg-red-500/20 text-red-400' : 'bg-teal-500/20 text-teal-400'
+          }`}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 500 }}
@@ -91,7 +132,6 @@ const KPICard = ({ data, isLive }: { data: KPIData; isLive: boolean }) => {
         </motion.span>
       </div>
       
-      {/* Value */}
       <div className="space-y-1">
         <p className="text-xs text-gray-400 uppercase tracking-wider">{data.label}</p>
         {typeof data.value === 'number' ? (
@@ -109,7 +149,6 @@ const KPICard = ({ data, isLive }: { data: KPIData; isLive: boolean }) => {
         )}
       </div>
       
-      {/* Alert badge */}
       {data.alert && (
         <motion.div
           className="absolute -top-2 -right-2 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center"
@@ -117,45 +156,19 @@ const KPICard = ({ data, isLive }: { data: KPIData; isLive: boolean }) => {
           animate={{ scale: 1 }}
           transition={{ type: "spring", stiffness: 500 }}
         >
-          <span className="text-xs font-bold">{data.alert}</span>
+          <AlertTriangle className="w-3 h-3 text-white" />
         </motion.div>
       )}
-      
-      {/* Hover actions */}
-      <AnimatePresence>
-        {isHovered && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="absolute -bottom-16 left-0 right-0 bg-black/80 backdrop-blur-sm rounded-lg p-3 z-10 border border-white/10"
-          >
-            <button 
-              onClick={() => drillDown(data.id)}
-              className="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1"
-            >
-              Drill Down <ChevronRight className="w-3 h-3" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 };
 
-// INSIGHT CARD COMPONENT
 const InsightCard = ({ insight }: { insight: Insight }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   
-  const severityStyles = {
-    critical: 'border-red-500/50 bg-red-500/10',
-    warning: 'border-amber-500/50 bg-amber-500/10',
-    info: 'border-cyan-500/50 bg-cyan-500/10'
-  };
-  
   return (
     <motion.div
-      className={`rounded-xl p-4 mb-3 cursor-pointer ${severityStyles[insight.severity]}`}
+      className={`rounded-xl p-4 mb-3 cursor-pointer ${SEVERITY_STYLES[insight.severity]}`}
       whileHover={{ scale: 1.01 }}
       onClick={() => setIsExpanded(!isExpanded)}
       layout
@@ -174,7 +187,7 @@ const InsightCard = ({ insight }: { insight: Insight }) => {
                 exit={{ opacity: 0, height: 0 }}
                 className="mt-3"
               >
-                <button className="bg-cyan-500/20 border border-cyan-500/50 rounded-lg px-3 py-2 text-sm text-cyan-400 hover:bg-cyan-500/30">
+                <button className="bg-cyan-500/20 border border-cyan-500/50 rounded-lg px-3 py-2 text-sm text-cyan-400 hover:bg-cyan-500/30 w-full">
                   {insight.action}
                 </button>
               </motion.div>
@@ -186,9 +199,8 @@ const InsightCard = ({ insight }: { insight: Insight }) => {
   );
 };
 
-// CHART COMPONENT
 const ChartWrapper = ({ chart }: { chart: ChartData }) => {
-  const colors = ['#00D4FF', '#10B981', '#F59E0B', '#EF4444', '#A3BFFA'];
+  const colors = ['#00D4FF', '#10B981', '#F59E0B', '#EF4444', '#A3BFFA', '#8B5CF6', '#F97316', '#06B6D4'];
   
   return (
     <Card className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6">
@@ -206,7 +218,7 @@ const ChartWrapper = ({ chart }: { chart: ChartData }) => {
               <XAxis dataKey="label" stroke="#9CA3AF" />
               <YAxis stroke="#9CA3AF" />
               <Tooltip contentStyle={{ backgroundColor: '#0B1120', border: '1px solid #1E2A44' }} />
-              <Line type="monotone" dataKey="value" stroke="#00D4FF" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="value" stroke="#00D4FF" strokeWidth={2} dot={{ r: 3, stroke: '#00D4FF', fill: '#00D4FF' }} />
             </LineChart>
           )}
           {chart.type === 'bar' && (
@@ -221,7 +233,7 @@ const ChartWrapper = ({ chart }: { chart: ChartData }) => {
           {chart.type === 'pie' && (
             <PieChart>
               <Tooltip contentStyle={{ backgroundColor: '#0B1120', border: '1px solid #1E2A44' }} />
-              <Pie data={chart.data} dataKey="value" nameKey="label" outerRadius={80}>
+              <Pie data={chart.data} dataKey="value" nameKey="label" outerRadius={90} label>
                 {chart.data.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                 ))}
@@ -243,130 +255,269 @@ const ChartWrapper = ({ chart }: { chart: ChartData }) => {
   );
 };
 
-// MAIN COCKPIT PAGE
+const DrilldownModal = ({ kpi, onClose }: { kpi: KPIData; onClose: () => void }) => {
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+      >
+        <motion.div
+          className="bg-cockpit-panel border border-white/10 rounded-2xl p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto"
+          initial={{ scale: 0.9, y: 20 }}
+          animate={{ scale: 1, y: 0 }}
+          exit={{ scale: 0.9, y: 20 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold">{kpi.label} - Detailed Analysis</h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-white">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <h3 className="text-lg font-semibold">Trend Analysis</h3>
+              </CardHeader>
+              <CardContent>
+                <ChartWrapper chart={{ type: 'line', title: '30 Day Trend', data: kpi.data || [] }} />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <h3 className="text-lg font-semibold">Category Breakdown</h3>
+              </CardHeader>
+              <CardContent>
+                <ChartWrapper chart={{ type: 'bar', title: 'By Segment', data: kpi.meta?.breakdown || [] }} />
+              </CardContent>
+            </Card>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+const CategoryTabs = ({ activeTab, onTabChange }: { activeTab: Category; onTabChange: (tab: Category) => void }) => {
+  return (
+    <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+      {Object.entries(CATEGORY_CONFIG).map(([key, config]) => {
+        const Icon = config.icon;
+        const isActive = activeTab === key;
+        
+        return (
+          <button
+            key={key}
+            onClick={() => onTabChange(key as Category)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg whitespace-nowrap transition-all ${
+              isActive 
+                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
+                : 'bg-white/5 text-gray-300 hover:bg-white/10'
+            }`}
+          >
+            <Icon className="w-4 h-4" />
+            {config.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+// ── MAIN PAGE ───────────────────────────────────────────────────────────
+
 export default function AnalyticsCockpit() {
-  // MOCK STATE - Replace with Redis pub/sub
-  const [industry, setIndustry] = useState('supermarket');
-  const [isIngesting, setIsIngesting] = useState(false);
-  const [ingestProgress, setIngestProgress] = useState(0);
-  const [aiInput, setAiInput] = useState('');
+  // FIX: Industry should be string, not Category
+  const [industry, setIndustry] = useState<string>('supermarket');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedKPI, setSelectedKPI] = useState<KPIData | null>(null);
+  const [aiInput, setAiInput] = useState('');
+  const [profile, setProfile] = useState<OrgProfile | null>(null);
+  const [activeTab, setActiveTab] = useState<Category>('realtime');
   
-  // Mock KPIs (will come from Redis: analytics:{org_id})
-  const [kpis, setKpis] = useState<KPIData[]>([
-  { id: "stock_value", label: "Stock Value", value: 2400000, change: "+8%", icon: Package, color: "#10B981" }, // ✅ number
-  { id: "expiring", label: "Expiring <7d", value: 47, change: "-12%", icon: AlertTriangle, color: "#F59E0B", alert: true }, // ✅ number
-  { id: "daily_sales", label: "Today's Sales", value: 487000, change: "+15%", icon: TrendingUp, color: "#10B981" }, // ✅ number
-  { id: "shrinkage", label: "Shrinkage", value: "2.3%", change: "-0.5%", icon: Zap, color: "#EF4444", inverse: true }, // ✅ string
-  // ... rest
-  ]);
-  
-  // Mock AI feed (will come from Redis: ai_response:{org_id})
-  const [aiFeed, setAiFeed] = useState<Insight[]>([
-    {
-      id: "1",
-      type: "alert",
-      severity: "critical",
-      icon: AlertOctagon,
-      title: "🚨 Milk Stockout in 48h",
-      description: "Current: 23 units | Avg sales: 45 units/day. Lost revenue risk: KES 12,400",
-      action: "Create Purchase Order →"
-    },
-    {
-      id: "2", 
-      type: "insight",
-      severity: "info",
-      icon: Lightbulb,
-      title: "💡 Tuesday Promo Opportunity",
-      description: "Bakery sales 18% below avg. Run 'Buy 2 Get 1' promo?",
-      action: "Deploy Promo →"
-    },
-    {
-      id: "3",
-      type: "system", 
-      severity: "info",
-      icon: Bot,
-      title: "🤖 Autopilot Active",
-      description: "Next forecast run: 6:00 AM (2h 34m) | Tasks queued: 0"
-    }
-  ]);
-  
-  // Mock charts (will come from analytics cache)
-  const [charts, setCharts] = useState<ChartData[]>([
-    { type: 'line', title: 'Sales Trend (7d)', data: [{label:'Mon',value:450},{label:'Tue',value:380},{label:'Wed',value:520},{label:'Thu',value:490},{label:'Fri',value:610},{label:'Sat',value:700},{label:'Sun',value:650}] },
-    { type: 'bar', title: 'Category AOV', data: [{label:'Bakery',value:1240},{label:'Dairy',value:890},{label:'Produce',value:1100},{label:'Meat',value:2100}] },
-    { type: 'pie', title: 'Customer Segments', data: [{label:'VIP',value:30},{label:'Regular',value:45},{label:'New',value:25}] },
-    { type: 'area', title: 'Forecast (Next 7d)', data: [{label:'Mon',value:680},{label:'Tue',value:720},{label:'Wed',value:750},{label:'Thu',value:800},{label:'Fri',value:820},{label:'Sat',value:780},{label:'Sun',value:740}] }
-  ]);
-  
-  // Simulate ingestion
   useEffect(() => {
-    const interval = setInterval(() => {
-      setIsIngesting(true);
-      setIngestProgress(Math.random() * 100);
-      
-      // Simulate new data arriving
-      if (Math.random() > 0.7) {
-        setKpis(prev => prev.map(kpi => ({
-          ...kpi,
-          value: typeof kpi.value === 'number' ? kpi.value + Math.floor(Math.random() * 10) : kpi.value
-        })));
+    let isMounted = true;
+    
+    const fetchProfile = async () => {
+      try {
+        const result = await getOrgProfileInternal();
+        if (isMounted) setProfile(result);
+      } catch (error) {
+        console.error('[Cockpit] Failed to load profile:', error);
+        if (isMounted) {
+          setProfile({
+            userId: 'user_synth_456',
+            orgId: 'org_synth_123',
+            role: 'USER',
+            plan: '088c6a32-7840-4188-bc1a-bdc0c6bee723'
+          });
+        }
       }
-    }, 5000);
+    };
     
-    return () => clearInterval(interval);
-  }, []);
-  
-  // Simulate AI feed updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setAiFeed(prev => [prev[0], {
-        id: Date.now().toString(),
-        type: "insight",
-        severity: "warning",
-        icon: Sparkles,
-        title: "💡 New Insight",
-        description: "AI has detected a pattern in your data",
-        action: "View →"
-      }, prev[2]]);
-    }, 10000);
+    fetchProfile();
     
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+    };
   }, []);
-  
-  // AI Query handler
-  const handleAIQuery = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+
+  const {
+    kpis: apiKpis, // This is now the full metrics object, not an array
+    insights: apiInsights,
+    status,
+    error,
+    lastUpdated,
+    isTriggering,
+    triggerComputation,
+    reconnect,
+  } = useAnalyticsPoll(profile?.orgId || null, 'default_source');
+
+  // Transform backend metrics to KPIData format
+  const transformMetricsToKPIs = useCallback((metrics: any): KPIData[] => {
+    if (!metrics) return [];
+    
+    const kpis: KPIData[] = [];
+    
+    // Process each category
+    Object.entries(CATEGORY_CONFIG).forEach(([categoryKey, config]) => {
+      const categoryData = metrics[categoryKey];
+      if (!categoryData) return;
+      
+      Object.entries(categoryData).forEach(([key, value]) => {
+        // Skip non-numeric values and metadata
+        if (typeof value !== 'number' || key.includes('_pct') || key.includes('_rate')) return;
+        
+        const changeKey = `growth_vs_last_${key}` in categoryData ? categoryData[`growth_vs_last_${key}`] : '+0%';
+        
+        kpis.push({
+          id: `${categoryKey}-${key}`,
+          label: formatLabel(key),
+          value: formatValue(value),
+          change: changeKey || '+0%',
+          icon: getIconByKey(key),
+          color: config.color,
+          category: categoryKey as Category,
+          alert: categoryKey === 'inventory' && key === 'expiring_value' && value > 5000,
+          inverse: key === 'shrinkage' || key === 'refund_rate',
+          meta: categoryData,
+        });
+      });
+    });
+    
+    return kpis.slice(0, 20); // Limit to top 20 to prevent UI overload
+  }, []);
+
+  // Process insights from backend
+  const processInsights = useCallback((metrics: any): Insight[] => {
+    if (!metrics?.predictive?.alerts && !metrics?.inventory?.alerts) return [];
+    
+    const alerts = [
+      ...(metrics.predictive?.alerts || []),
+      ...(metrics.inventory?.alerts || [])
+    ];
+    
+    return alerts.map((alert: any, i: number) => ({
+      id: `alert-${i}`,
+      type: alert.severity === 'critical' ? 'alert' : 'insight',
+      severity: alert.severity || 'info',
+      icon: INSIGHT_ICONS[alert.severity === 'critical' ? 'alert' : 'insight'] || Lightbulb,
+      title: alert.title || alert,
+      description: alert.description || '',
+      action: alert.action,
+    }));
+  }, []);
+
+  // Transform API response
+  const kpis = useMemo(() => {
+    if (!apiKpis) return [];
+    return transformMetricsToKPIs(apiKpis);
+  }, [apiKpis, transformMetricsToKPIs]);
+
+  const aiFeed = useMemo(() => {
+    if (!apiKpis) return [];
+    return processInsights(apiKpis);
+  }, [apiKpis, processInsights]);
+
+  // Dynamic charts from backend
+  const charts = useMemo(() => {
+    if (!apiKpis?.charts) return []; // FIX: apiKpis is an object, not an array
+    
+    const chartData = apiKpis.charts;
+    return [
+      { type: 'line' as ChartType, title: 'Hourly Sales', data: chartData.hourly_sales || [] },
+      { type: 'bar' as ChartType, title: 'Top Categories', data: chartData.top_categories || [] },
+      { type: 'pie' as ChartType, title: 'Customer Segments', data: chartData.customer_segments || [] },
+      { type: 'area' as ChartType, title: '7-Day Sales Trend', data: chartData.sales_trend_7d || [] },
+    ];
+  }, [apiKpis]);
+
+  const handleAIQuery = useCallback(async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && aiInput.trim()) {
-      // This will push to Redis: task_queue
       console.log('AI Query:', aiInput);
       setAiInput('');
-      
-      // Mock instant response
-      setAiFeed(prev => [{
-        id: Date.now().toString(),
-        type: "insight",
-        severity: "info",
-        icon: Bot,
-        title: `🤖 ${aiInput}`,
-        description: "Processing your query...",
-        action: "Waiting for response"
-      }, ...prev]);
     }
-  };
-  
+  }, [aiInput]);
+
+  const handleKPIClick = useCallback((kpi: KPIData) => {
+    setSelectedKPI(kpi);
+  }, []);
+
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-cockpit-bg text-white flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-cyan-400" />
+          <p>Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'loading' && !apiKpis) {
+    return (
+      <div className="min-h-screen bg-cockpit-bg text-white flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-cyan-400" />
+          <p>Loading analytics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <div className="min-h-screen bg-cockpit-bg text-white flex items-center justify-center p-6">
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 max-w-md">
+          <h2 className="text-xl font-bold mb-2">Error Loading Analytics</h2>
+          <p className="text-gray-300 mb-4">{error}</p>
+          <button 
+            onClick={reconnect}
+            className="bg-cyan-500/20 border border-cyan-500/50 rounded-lg px-4 py-2 text-cyan-400 hover:bg-cyan-500/30"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-cockpit-bg text-white relative">
-      {/* Progress Bar (Ingestion) */}
-      <AnimatePresence>
-        {isIngesting && (
-          <motion.div
-            className="fixed top-0 left-0 right-0 h-1 bg-cyan-500 z-50"
-            initial={{ width: 0 }}
-            animate={{ width: `${ingestProgress}%` }}
-            exit={{ opacity: 0 }}
-          />
-        )}
-      </AnimatePresence>
+      {/* Progress Bar */}
+      {isTriggering && (
+        <motion.div
+          className="fixed top-0 left-0 right-0 h-1 bg-cyan-500 z-50"
+          initial={{ width: 0 }}
+          animate={{ width: "100%" }}
+          transition={{ duration: 0.5, ease: "easeInOut" }}
+        />
+      )}
       
       {/* Header */}
       <motion.header 
@@ -380,17 +531,24 @@ export default function AnalyticsCockpit() {
               <Menu className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-cyan-400">Analytics Cockpit</h1>
-              <p className="text-xs text-gray-400">org_synth_123 • PRO Tier</p>
+              <h1 className="text-2xl font-bold text-cyan-400">Analytics Copilot</h1>
+              <p className="text-xs text-gray-400">{profile.orgId} • Tier: {profile.plan}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-teal-400 rounded-full animate-pulse" />
-              <span className="text-xs">Live</span>
+              <div className={`w-2 h-2 rounded-full ${
+                status === 'connected' ? 'bg-teal-400' : 'bg-amber-400 animate-pulse'
+              }`} />
+              <span className="text-xs">{status}</span>
             </div>
-            <AlertTriangle className="w-5 h-5 text-amber-400" />
-            <Bell className="w-5 h-5 text-cyan-400" />
+            <button 
+              onClick={triggerComputation}
+              disabled={isTriggering}
+              className="text-xs bg-cyan-500/20 border border-cyan-500/50 rounded-lg px-3 py-1 hover:bg-cyan-500/30 disabled:opacity-50"
+            >
+              {isTriggering ? 'Processing...' : 'Recompute'}
+            </button>
           </div>
         </div>
       </motion.header>
@@ -410,11 +568,13 @@ export default function AnalyticsCockpit() {
                 <h2 className="text-lg font-semibold text-cyan-400">AI Command Feed</h2>
                 <Sparkles className="w-4 h-4 text-cyan-400" />
               </div>
-              
               <div className="space-y-2">
                 {aiFeed.map(insight => (
                   <InsightCard key={insight.id} insight={insight} />
                 ))}
+                {aiFeed.length === 0 && (
+                  <p className="text-sm text-gray-400">No insights yet. Data is being analyzed...</p>
+                )}
               </div>
             </motion.aside>
           )}
@@ -439,26 +599,43 @@ export default function AnalyticsCockpit() {
               <option value="pharmaceutical">💊 Pharmaceutical</option>
               <option value="wholesale">📦 Wholesale</option>
             </select>
-            <span className="text-xs text-gray-400">Live data from DuckDB</span>
+            <span className="text-xs text-gray-400">
+              {lastUpdated ? `Updated: ${lastUpdated.toLocaleTimeString()}` : 'Live data from DuckDB'}
+            </span>
           </motion.div>
           
-          {/* KPI Rail */}
+          {/* Category Tabs */}
+          <CategoryTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          
+          {/* KPI Grid */}
           <motion.section
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
+            className="mb-6"
           >
-            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-              {kpis.map((kpi, i) => (
-                <motion.div
-                  key={kpi.id}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.4 + i * 0.1 }}
-                >
-                  <KPICard data={kpi} isLive={isIngesting} />
-                </motion.div>
-              ))}
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {kpis
+                .filter(kpi => kpi.category === activeTab)
+                .map((kpi, i) => (
+                  <motion.div
+                    key={kpi.id}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1 + i * 0.05 }}
+                  >
+                    <KPICard 
+                      data={kpi} 
+                      isLive={status === 'connected'} 
+                      onClick={() => handleKPIClick(kpi)}
+                    />
+                  </motion.div>
+                ))}
+              {kpis.filter(kpi => kpi.category === activeTab).length === 0 && (
+                <div className="col-span-full text-center py-8 text-gray-400">
+                  No {activeTab} metrics available yet
+                </div>
+              )}
             </div>
           </motion.section>
           
@@ -467,14 +644,14 @@ export default function AnalyticsCockpit() {
             className="grid grid-cols-1 lg:grid-cols-2 gap-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.4 }}
           >
             {charts.map((chart, i) => (
               <motion.div
                 key={chart.title}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.7 + i * 0.15 }}
+                transition={{ delay: 0.2 + i * 0.1 }}
               >
                 <ChartWrapper chart={chart} />
               </motion.div>
@@ -488,7 +665,7 @@ export default function AnalyticsCockpit() {
         className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl z-40"
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.8, type: "spring" }}
+        transition={{ delay: 0.5, type: "spring" }}
       >
         <div className="bg-black/70 backdrop-blur-xl border border-cyan-400/30 rounded-2xl p-3 flex items-center gap-3 shadow-2xl">
           <Bot className="w-5 h-5 text-cyan-400" />
@@ -501,48 +678,80 @@ export default function AnalyticsCockpit() {
             className="flex-1 bg-transparent border-0 text-white placeholder:text-gray-400 focus:outline-none"
           />
           <div className="flex items-center gap-2 text-xs text-gray-400">
-            <kbd className="px-1 py-0.5 bg-white/10 rounded">⌘</kbd>
-            <span>K</span>
+            <kbd className="px-1 py-0.5 bg-white/10 rounded">Enter</kbd>
+            <span>Ask AI</span>
           </div>
         </div>
       </motion.div>
       
-      {/* Status Bar */}
-      <motion.div 
-        className="fixed bottom-0 left-0 right-0 bg-black/80 backdrop-blur-xl border-t border-white/10 px-6 py-2 text-xs text-gray-400 flex items-center justify-between"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.9 }}
-      >
-        <div className="flex items-center gap-4">
-          <StatusIndicator label="DuckDB" status="healthy" />
-          <StatusIndicator label="Redis" status="healthy" />
-          <StatusIndicator label="LLM" status="loading" />
-          <div className="w-px h-3 bg-white/10" />
-          <span>Last: 2s ago</span>
-          <span>Next: 6:00 AM (2h 34m)</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-teal-400">org_synth_123</span>
-          <span className="text-amber-400">Tier: PRO</span>
-          <span>Credits: 1,450</span>
-        </div>
-      </motion.div>
+      {/* Drilldown Modal */}
+      <AnimatePresence>
+        {selectedKPI && (
+          <DrilldownModal kpi={selectedKPI} onClose={() => setSelectedKPI(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
-// HELPERS
-const StatusIndicator = ({ label, status }: { label: string; status: 'healthy' | 'loading' | 'error' }) => {
-  const color = status === 'healthy' ? 'bg-teal-400' : status === 'loading' ? 'bg-amber-400 animate-pulse' : 'bg-red-400';
-  
-  return (
-    <div className="flex items-center gap-2">
-      <div className={`w-2 h-2 rounded-full ${color}`} />
-      <span>{label}</span>
-    </div>
-  );
+// ── UTILITY FUNCTIONS ───────────────────────────────────────────────────
+
+const formatLabel = (key: string): string => {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, l => l.toUpperCase())
+    .replace(/Pct/g, '%')
+    .replace(/Avg/g, 'Average');
 };
 
-// PLACEHOLDER FUNCTIONS (Replace with real logic)
-const drillDown = (kpiId: string) => console.log('Drill down:', kpiId);
+const formatValue = (value: any): string | number => {
+  if (typeof value === 'number') {
+    if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+    if (value < 1 && value > 0) return `${(value * 100).toFixed(1)}%`;
+    return Math.round(value);
+  }
+  return String(value);
+};
+
+const getIconByKey = (key: string): React.ElementType => {
+  const iconMap: Record<string, React.ElementType> = {
+    // Realtime
+    hourly_sales: TrendingUp,
+    active_checkouts: Zap,
+    items_per_minute: Package,
+    avg_transaction_time: Clock,
+    queue_length_estimate: Users,
+    
+    // Financial
+    daily_sales: DollarSign,
+    gross_margin: TrendingUp,
+    refund_rate: AlertTriangle,
+    avg_basket_value: ShoppingCart,
+    avg_items_per_basket: Box,
+    labor_efficiency: Activity,
+    sales_per_sqft: Target,
+    
+    // Inventory
+    expiring_value: AlertTriangle,
+    out_of_stock_skus: AlertCircle,
+    wastage_rate: TrendingDown,
+    stock_turnover: RefreshCw,
+    carrying_cost: DollarSign,
+    
+    // Customer
+    unique_customers: Users,
+    repeat_rate: HeartPulse,
+    peak_hour: Clock,
+    weekend_lift_pct: TrendingUp,
+    new_customers: UserPlus,
+    customer_lifetime_value: DollarSign,
+  };
+  return iconMap[key] || BarChart3;
+};
+
+const UserPlus = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+  </svg>
+);

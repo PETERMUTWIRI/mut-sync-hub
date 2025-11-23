@@ -100,9 +100,9 @@ export async function GET(req: NextRequest) {
     console.log('[org-profile] 🚨 Using synthetic profile (Neon bypass)');
 
     // 🚨 TEMPORARY: Hardcoded synthetic data
-    const syntheticUserId = 'user_synth_1731187200000';
+    const syntheticUserId = 'user_synth_456';
     const syntheticProfileId = 'profile_synth_1731187200001';
-    const syntheticOrgId = 'org_synth_1731187200002';
+    const syntheticOrgId = 'org_synth_123';
     const syntheticPlanId = '088c6a32-7840-4188-bc1a-bdc0c6bee723';
 
     const syntheticResponse = {
