@@ -18,6 +18,7 @@ import {
 
 import { useAnalyticsPoll } from '@/hooks/useAnalyticsPoll';
 import { getOrgProfileInternal } from '@/lib/org-profile';
+import { useAIQuery } from '@/hooks/useAIQuery';
 
 // ── TYPE DEFINITIONS ────────────────────────────────────────────────────
 
@@ -339,6 +340,8 @@ export default function AnalyticsCockpit() {
   const [aiInput, setAiInput] = useState('');
   const [profile, setProfile] = useState<OrgProfile | null>(null);
   const [activeTab, setActiveTab] = useState<Category>('realtime');
+  const { askQuestion, answer, sources, loading } = useAIQuery();
+  const [aiQuery, setAiQuery] = useState('');
   
   useEffect(() => {
     let isMounted = true;
@@ -458,11 +461,11 @@ export default function AnalyticsCockpit() {
   }, [apiKpis]);
 
   const handleAIQuery = useCallback(async (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && aiInput.trim()) {
-      console.log('AI Query:', aiInput);
-      setAiInput('');
+    if (e.key === 'Enter' && aiQuery.trim() && profile) {
+      await askQuestion(aiQuery, profile.orgId);
+      setAiQuery('');
     }
-  }, [aiInput]);
+  }, [aiQuery, profile, askQuestion]);
 
   const handleKPIClick = useCallback((kpi: KPIData) => {
     setSelectedKPI(kpi);
@@ -662,24 +665,34 @@ export default function AnalyticsCockpit() {
       
       {/* Command Bar */}
       <motion.div 
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl z-40"
+        className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-3xl z-40"
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5, type: "spring" }}
       >
-        <div className="bg-black/70 backdrop-blur-xl border border-cyan-400/30 rounded-2xl p-3 flex items-center gap-3 shadow-2xl">
-          <Bot className="w-5 h-5 text-cyan-400" />
-          <input
-            type="text"
-            value={aiInput}
-            onChange={(e) => setAiInput(e.target.value)}
-            onKeyDown={handleAIQuery}
-            placeholder='Ask anything... (e.g., "Why did sales drop yesterday?")'
-            className="flex-1 bg-transparent border-0 text-white placeholder:text-gray-400 focus:outline-none"
-          />
+        <div className="bg-black/70 backdrop-blur-xl border border-cyan-400/30 rounded-2xl p-4 flex items-start gap-3 shadow-2xl">
+          <Bot className="w-5 h-5 text-cyan-400 mt-1" />
+          <div className="flex-1">
+            <input
+              type="text"
+              value={aiQuery}
+              onChange={(e) => setAiQuery(e.target.value)}
+              onKeyDown={handleAIQuery}
+              placeholder='Ask anything about your data...'
+              className="w-full bg-transparent border-0 text-white placeholder:text-gray-400 focus:outline-none mb-2"
+            />
+            {loading && (
+              <div className="text-xs text-cyan-400">Thinking... analyzing {sources.length} transactions</div>
+            )}
+            {answer && !loading && (
+              <div className="text-sm text-gray-300 border-t border-white/10 pt-2 mt-2">
+                <strong>AI:</strong> {answer}
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <kbd className="px-1 py-0.5 bg-white/10 rounded">Enter</kbd>
-            <span>Ask AI</span>
+            <span>Ask</span>
           </div>
         </div>
       </motion.div>
