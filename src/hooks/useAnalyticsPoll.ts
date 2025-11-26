@@ -189,7 +189,7 @@ export const useAnalyticsPoll = (
         credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
-          'X-API-KEY': process.env.ANALYTICS_ENGINE_URL || '',
+          'X-API-KEY': process.env.ANALYTICS_ENGINE_API_KEY || '',
         },
       });
       
