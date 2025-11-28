@@ -182,7 +182,7 @@ export const useAnalyticsPoll = (
       setStatus(prev => (prev === 'idle' || prev === 'error') ? 'loading' : prev);
       setError(null);
 
-      const apiUrl = process.env.ANALYTICS_ENGINE_URL || 'http://localhost:8000';
+      const apiUrl = process.env.ANALYTICS_ENGINE_URL;
       const url = `${apiUrl}/api/v1/analytics/stream/recent?org_id=${resolvedOrgId}&source_id=${sourceId}&count=10`;
       
       const res = await fetch(url, {
@@ -255,7 +255,7 @@ export const useAnalyticsPoll = (
     setError(null);
 
     try {
-      const apiUrl = process.env.ANALYTICS_ENGINE_URL || 'http://localhost:8000';
+      const apiUrl = process.env.ANALYTICS_ENGINE_URL;
       const res = await fetch(`${apiUrl}/api/v1/kpi/compute`, {
         method: 'POST',
         headers: {
