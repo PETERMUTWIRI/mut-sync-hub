@@ -1,4 +1,3 @@
-
 // app/page.tsx
 
 // import dynamic from 'next/dynamic';
@@ -28,40 +27,47 @@ export default function Home() {
             <EnterpriseTrust />
             <AnalyticsPreview />
             <SolutionsOverview />
-            <section className="py-12 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <h2 className="text-3xl font-bold text-[#1E2A44] dark:text-[#E2E8F0] text-center mb-8">
-                Explore More
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white dark:bg-[#2E3A59] p-6 rounded-lg shadow-md">
-                  <h3 className="text-xl font-semibold text-[#2E7D7D] mb-4">Solutions</h3>
-                  <p className="text-gray-600 dark:text-gray-300 mb-4">
-                    Discover our full range of AI, cloud, and data solutions tailored for your business.
-                  </p>
-                  <Button asChild className="bg-[#2E7D7D] text-white hover:bg-[#256363]">
-                    <Link href="/solutions">View All Solutions</Link>
-                  </Button>
+            
+            {/* Updated Explore More section with EnterpriseTrust theme */}
+            <section className="bg-[#1E2A44] py-16 px-6">
+              <div className="max-w-7xl mx-auto">
+                <div className="text-center mb-12">
+                  <h2 className="text-3xl md:text-4xl font-bold text-white">
+                    Explore More
+                  </h2>
                 </div>
-                <div className="bg-white dark:bg-[#2E3A59] p-6 rounded-lg shadow-md">
-                  <h3 className="text-xl font-semibold text-[#2E7D7D] mb-4">Resources</h3>
-                  <p className="text-gray-600 dark:text-gray-300 mb-4">
-                    Access documentation, guides, and tutorials to get started with MutSyncHub.
-                  </p>
-                  <Button asChild className="bg-[#2E7D7D] text-white hover:bg-[#256363]">
-                    <Link href="/resources">Explore Resources</Link>
-                  </Button>
-                </div>
-                <div className="bg-white dark:bg-[#2E3A59] p-6 rounded-lg shadow-md">
-                  <h3 className="text-xl font-semibold text-[#2E7D7D] mb-4">Support</h3>
-                  <p className="text-gray-600 dark:text-gray-300 mb-4">
-                    Get help from our support team or check our community forums.
-                  </p>
-                  <Button asChild className="bg-[#2E7D7D] text-white hover:bg-[#256363]">
-                    <Link href="/what-we-do-support">Visit Support Center</Link>
-                  </Button>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-[#2A3756] rounded-lg p-6 border border-[#E2E8F0]/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+                    <h3 className="text-xl font-semibold text-white mb-4">Solutions</h3>
+                    <p className="text-[#A0AEC0] mb-6">
+                      Discover our full range of AI, cloud, and data solutions tailored for your business.
+                    </p>
+                    <Button asChild className="bg-[#2E7D7D] text-white hover:bg-[#256363] w-full">
+                      <Link href="/solutions">View All Solutions</Link>
+                    </Button>
+                  </div>
+                  <div className="bg-[#2A3756] rounded-lg p-6 border border-[#E2E8F0]/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+                    <h3 className="text-xl font-semibold text-white mb-4">Resources</h3>
+                    <p className="text-[#A0AEC0] mb-6">
+                      Access documentation, guides, and tutorials to get started with MutSyncHub.
+                    </p>
+                    <Button asChild className="bg-[#2E7D7D] text-white hover:bg-[#256363] w-full">
+                      <Link href="/resources">Explore Resources</Link>
+                    </Button>
+                  </div>
+                  <div className="bg-[#2A3756] rounded-lg p-6 border border-[#E2E8F0]/20 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1">
+                    <h3 className="text-xl font-semibold text-white mb-4">Support</h3>
+                    <p className="text-[#A0AEC0] mb-6">
+                      Get help from our support team or check our community forums.
+                    </p>
+                    <Button asChild className="bg-[#2E7D7D] text-white hover:bg-[#256363] w-full">
+                      <Link href="/what-we-do-support">Visit Support Center</Link>
+                    </Button>
+                  </div>
                 </div>
               </div>
             </section>
+            
             <IndustryImpact />
             <FAQSection />
             <CTASection />

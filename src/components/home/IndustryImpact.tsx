@@ -156,6 +156,7 @@ const IndustryImpact = () => {
             <div className="w-full max-w-4xl">
               <div className="bg-white rounded-2xl shadow-sm border border-[#E2E8F0] overflow-hidden">
                 <div className="md:flex">
+                  {/* Left side - Whitish background */}
                   <div className="md:w-2/5 p-8 flex flex-col justify-center items-center text-center bg-[#F7FAFC]">
                     <motion.div
                       whileHover={{ scale: 1.1 }}
@@ -175,14 +176,15 @@ const IndustryImpact = () => {
                     </div>
                   </div>
 
-                  <div className="md:w-3/5 p-8">
-                    <h4 className="text-base font-semibold text-[#1E2A44] mb-4">Solution Overview</h4>
-                    <p className="text-[#4A5568] mb-6 leading-relaxed">
+                  {/* Right side - Bluish background */}
+                  <div className="md:w-3/5 p-8 bg-[#2A3756]">
+                    <h4 className="text-base font-semibold text-white mb-4">Solution Overview</h4>
+                    <p className="text-[#A0AEC0] mb-6 leading-relaxed">
                       {industries[currentIndex].description}
                     </p>
 
                     <div className="mt-8">
-                      <h4 className="text-base font-semibold text-[#1E2A44] mb-3">Key Benefits</h4>
+                      <h4 className="text-base font-semibold text-white mb-3">Key Benefits</h4>
                       <ul className="space-y-2">
                         {[
                           'Real-time analytics dashboard',
@@ -193,7 +195,7 @@ const IndustryImpact = () => {
                         ].map((item, idx) => (
                           <li key={idx} className="flex items-start">
                             <span className="text-[#2E7D7D] mr-2">✓</span>
-                            <span className="text-[#4A5568]">{item}</span>
+                            <span className="text-[#A0AEC0]">{item}</span>
                           </li>
                         ))}
                       </ul>
