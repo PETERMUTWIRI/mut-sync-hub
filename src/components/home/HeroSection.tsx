@@ -181,24 +181,26 @@ export default function HeroSection() {
       cancelAnimationFrame(animationFrame);
     };
   }, []);
+      // incase of css error   look here
+  const styles = `
+    @keyframes logo-marquee {
+      0% {
+        transform: translateX(100vw);
+      }
+      100% {
+        transform: translateX(-100vw);
+      }
+    }
+    .animate-logo-marquee {
+      animation: logo-marquee 30s linear infinite;
+      display: flex;
+      align-items: center;
+    }
+  `;
 
   return (
     <>
-      <style jsx>{`
-        @keyframes logo-marquee {
-          0% {
-            transform: translateX(100vw);
-          }
-          100% {
-            transform: translateX(-100vw);
-          }
-        }
-        .animate-logo-marquee {
-          animation: logo-marquee 30s linear infinite;
-          display: flex;
-          align-items: center;
-        }
-      `}</style>
+      <style>{styles}</style>
       <div className="relative">
         <div className="relative overflow-hidden w-full h-[700px] flex items-center justify-start">
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover z-0" />

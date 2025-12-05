@@ -76,6 +76,7 @@
     "ioredis": "^5.8.2",
     "lightweight-charts": "^5.0.9",
     "lottie-react": "^2.4.1",
+    "lottie-web": "^5.13.0",
     "lucide-react": "^0.548.0",
     "moment": "^2.30.1",
     "next": "^16.0.0",

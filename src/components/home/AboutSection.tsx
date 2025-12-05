@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Database, BarChart, Clock, Users, Lock, Cpu, LineChart, PieChart, Globe, MessageSquare, ArrowRight, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
+import LottieSectionAnimation from '@/components/animations/LottieSectionAnimation';
 
 const AboutSection: React.FC = () => {
   const sections = [
@@ -13,95 +14,37 @@ const AboutSection: React.FC = () => {
       title: 'Empowering Businesses with Intelligent Technology',
       content:
         "At MutSyncHub, we're not just building software; we're crafting intelligent ecosystems that help businesses grow with confidence. From real-time data automation to smart cloud solutions, our approach is always tailored and future-forward.",
-      visual: (
-        <div className="relative w-full h-80">
-          <video
-            src="/Scene-2.mp4"
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-80 rounded-2xl object-cover shadow-sm border border-[#E2E8F0]"
-          />
-        </div>
-      ),
+      animation: 'intelligent-technology.json',
     },
     {
       title: 'The Data Challenge Enterprises Face',
       content:
         'For too long, businesses have wrestled with data scattered across systems, struggling to extract timely, actionable insights. Manual reporting delays crucial decisions, and the true potential of your operations remains locked away. This is where MutSyncHub steps in, transforming your raw data into your most strategic asset.',
-      visual: (
-        <video
-          src="/scattered.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-80 rounded-2xl object-cover shadow-sm border border-[#E2E8F0]"
-        />
-      ),
+      animation: 'data-silos.json',
     },
     {
       title: 'The AI-Powered Intelligence Platform',
       content:
         "We've engineered an enterprise-grade AI Data Analytics Platform designed for the core of your business. Whether you're a major wholesaler, a dynamic retail chain, a bustling supermarket, or a manufacturing powerhouse, if you possess data – from intricate databases to daily POS transactions – MutSyncHub is built for you.",
-      visual: (
-        <video
-          src="/powered-2.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-80 rounded-2xl object-cover shadow-sm border border-[#E2E8F0]"
-        />
-      ),
+      animation: 'ai-powered-intelligence.json',
     },
     {
       title: 'Unrivaled Data Exploration',
       content:
         "Our engine dives deep, generating advanced statistics (mean, std, skewness, kurtosis), mapping crucial correlations, and highlighting feature importance. We pinpoint outliers and anomalies with precision using advanced statistical and machine learning methods, ensuring your data's integrity. We even perform distribution tests and dimensionality reduction (PCA) to give you a crystal-clear understanding of your data's underlying structure.",
-      visual: (
-        <div className="relative w-full h-80">
-          <video
-            src="/visual.mp4"
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="w-full h-80 rounded-2xl object-cover shadow-sm border border-[#E2E8F0]"
-          />
-        </div>
-      ),
+      animation: 'statistical-analysis.json',
     },
     {
       title: 'Strategic Forecasting & Market Insights',
       content:
         'Look to the future with confidence. MutSyncHub expertly analyzes temporal patterns, decomposes time series for trends and seasonality, and integrates with cutting-edge tools like Prophet for advanced forecasting. Understand your customers and products like never before. Our platform employs powerful clustering algorithms to segment your market with unparalleled accuracy, providing the insights needed for hyper-targeted strategies.',
-      visual: (
-        <video
-          src="/market2.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-80 rounded-2xl object-cover shadow-sm border border-[#E2E8F0]"
-        />
-      ),
+      animation: 'time-series-prediction.json',
     },
     {
       title: 'Your Trusted AI Partner: The Contextual Agent',
       content:
         "Imagine having a data analyst on demand, available 24/7. Our groundbreaking contextual-aware agent makes this a reality. Simply query it using natural language, and it delves into the analyzed data, delivering comprehensive reports and answers to your questions instantly. Crucially, in an era where AI adoption can raise concerns about data privacy, we've prioritized your peace of mind. Our agent operates locally, meaning your sensitive enterprise data remains within your secure environment.",
-      visual: (
-        <video
-          src="/agent.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-80 rounded-2xl object-cover shadow-sm border border-[#E2E8F0]"
-        />
-      ),
+      animation: 'ai-partner.json', // You'll need to download this
     },
   ];
 
@@ -146,18 +89,24 @@ const AboutSection: React.FC = () => {
                 {section.content}
               </motion.p>
             </div>
-            {/* Visual content - alternates sides */}
+            
+            {/* Lottie Animation - alternates sides */}
             <motion.div
-              className={`h-80 ${index % 2 === 0 ? 'lg:order-2' : 'lg:order-1'}`}
+              className={`${index % 2 === 0 ? 'lg:order-2' : 'lg:order-1'}`}
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               viewport={{ once: true }}
             >
-              {section.visual}
+              <LottieSectionAnimation 
+                animationPath={section.animation}
+                delay={0.3}
+                className="rounded-2xl shadow-sm border border-[#E2E8F0]"
+              />
             </motion.div>
           </div>
         ))}
+        
         {/* Final CTA */}
         <div className="text-center mt-16">
           <motion.div
@@ -180,7 +129,7 @@ const AboutSection: React.FC = () => {
               onClick={() => router.push('/signup')}
             >
               Launch Analytics Engine
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
           </motion.div>
         </div>
