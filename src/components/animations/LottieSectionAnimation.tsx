@@ -23,10 +23,15 @@ const LottieSectionAnimation: React.FC<LottieSectionAnimationProps> = ({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Dynamically import the JSON file
+    // Load from public folder using fetch
     const loadAnimation = async () => {
       try {
-        const animationData = await import(`@/assets/lottie/about_section/${animationPath}`);
+        const response = await fetch(`/animations/about_section/${animationPath}`);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch animation: ${animationPath}`);
+        }
+        
+        const animationData = await response.json();
         
         if (!containerRef.current) return;
         
@@ -35,7 +40,7 @@ const LottieSectionAnimation: React.FC<LottieSectionAnimationProps> = ({
           renderer: 'svg',
           loop: true,
           autoplay: true,
-          animationData: animationData.default || animationData,
+          animationData,
           rendererSettings: {
             preserveAspectRatio: 'xMidYMid slice',
             progressiveLoad: true,
@@ -43,14 +48,14 @@ const LottieSectionAnimation: React.FC<LottieSectionAnimationProps> = ({
           },
         });
 
-        // Set speed for premium, slower feel
+        // Premium feel - slower animation
         animationRef.current.setSpeed(0.75);
         
-        // Mark as loaded when animation is ready
+        // Mark as loaded
         setIsLoaded(true);
 
       } catch (error) {
-        console.error(`Failed to load animation: ${animationPath}`, error);
+        console.error(`Lottie animation error: ${animationPath}`, error);
         // Still mark as loaded to avoid blocking UI
         setIsLoaded(true);
       }
@@ -73,7 +78,6 @@ const LottieSectionAnimation: React.FC<LottieSectionAnimationProps> = ({
           opacity: isLoaded ? 1 : 0, 
           scale: isLoaded ? 1 : 0.9 
         }}
-        exit={{ opacity: 0, scale: 0.9 }}
         transition={{ 
           duration: 0.6, 
           delay: delay,
