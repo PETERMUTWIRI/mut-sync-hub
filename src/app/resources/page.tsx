@@ -58,7 +58,7 @@ export default function ResourcesPage() {
 
   /* ----------  TRUST BAR (icons instead of broken svgs) ---------- */
   const TrustIcons = () => (
-    <div className="flex justify-center gap-8 flex-wrap text-3xl text-teal-400">
+    <div className="flex justify-center gap-4 sm:gap-6 md:gap-8 flex-wrap text-2xl sm:text-3xl text-teal-400">
       <SiKubernetes title="Kubernetes" />
       <SiTerraform title="Terraform" />
       <SiReact title="React" />
@@ -110,13 +110,19 @@ export default function ResourcesPage() {
                     <Input
                       type="text"
                       placeholder="Search documentation, APIs, guides..."
-                      className="bg-[#2E7D7D]/20 border-[#2E7D7D] text-gray-100 placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-[#2E7D7D] w-64"
+                      className="bg-[#2E7D7D]/20 border-[#2E7D7D] text-gray-100 placeholder-gray-400 rounded-lg focus:ring-2 focus:ring-[#2E7D7D] w-full max-w-xs sm:max-w-sm md:max-w-md"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                    <Button asChild className="bg-teal-600 text-white hover:bg-teal-700 px-4 py-2 rounded-lg">
-                      <Link href="/what-we-do-support">Contact Sales</Link>
-                    </Button>
+                    <Link
+                        href="https://wa.me/254783423550?text=Hi%20MutSyncHub,%20I%20need%20enterprise%20solutions."
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                         <Button className="bg-[#2E7D7D] text-white px-4 py-2 rounded-lg hover:bg-[#2E7D7D]/80">
+                            Contact Sales
+                          </Button>
+                    </Link>
                   </div>
                 </div>
               </div>
@@ -178,7 +184,7 @@ export default function ResourcesPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col lg:flex-row gap-8">
             {/* Sidebar */}
-            <aside className="lg:w-1/4">
+            <aside className="lg:w-1/4 max-w-full">
               <div className="sticky top-24 bg-[#1E2A44]/50 rounded-lg p-6 border border-[#2E7D7D]/30 shadow-md">
                 <h2 className="flex items-center gap-2 text-xl font-semibold text-gray-100 mb-4"><Filter size={20} /> Filter</h2>
                 <div className="space-y-2">

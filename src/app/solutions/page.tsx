@@ -631,7 +631,7 @@ export default function SolutionsPage() {
   }, [searchParams]);
 
   return (
-    <div className="min-h-screen bg-[#1E2A44] text-gray-100 font-inter">
+    <div className="min-h-screen bg-[#1E2A44] text-gray-100 font-inter overflow-x-hidden">
       {/*  ----  NAV BAR  ----  */}
       <header className="flex items-center justify-between px-8 py-4 bg-[#1E2A44] border-b border-[#2E7D7D]/30 shadow-lg w-full">
         <div className="flex items-center gap-4">
@@ -645,7 +645,11 @@ export default function SolutionsPage() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <Input type="text" placeholder="Search solutions..." className="bg-[#2E7D7D]/20 border-[#2E7D7D] text-gray-100 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D7D] w-64" />
+          <Input 
+            type="text" 
+            placeholder="Search solutions..." 
+            className="bg-[#2E7D7D]/20 border-[#2E7D7D] text-gray-100 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D7D] w-full max-w-xs md:max-w-sm"
+          />
           <Link
             href="https://wa.me/254783423550?text=Hi%20MutSyncHub,%20I%20need%20enterprise%20solutions."
             target="_blank"
@@ -679,7 +683,7 @@ export default function SolutionsPage() {
       {/*  ----  STICKY CATEGORY PILLS  ----  */}
       <section className="sticky top-0 z-20 bg-[#1E2A44]/80 backdrop-blur border-b border-[#2E7D7D]/30">
         <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-center gap-2">
+          <div className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto pb-2">
             {SERVICE_CATEGORIES.map((cat) => (
               <Button
                 key={cat.id}
@@ -698,7 +702,7 @@ export default function SolutionsPage() {
       {/*  ----  SOLUTIONS GRID  ----  */}
       <section id="solutions" className="py-16 bg-[#1E2A44]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-full">
             {/* LEFT — Enterprise Cards */}
             <div>
               <h2 className="text-3xl font-bold text-gray-100 mb-4">{selectedCategory === 'all' ? 'Our Solutions' : SERVICE_CATEGORIES.find((c) => c.id === selectedCategory)?.name}</h2>
@@ -736,7 +740,7 @@ export default function SolutionsPage() {
             </div>
 
             {/* RIGHT — AI Consultant */}
-            <div ref={agentRef} className="lg:sticky lg:top-24 self-start z-30">
+            <div ref={agentRef} className="lg:sticky lg:top-24 self-start z-30 max-w-full lg:max-w-md">
               <motion.div
                 initial={false}
                 animate={{ height: showAgent ? 'auto' : 64 }}
