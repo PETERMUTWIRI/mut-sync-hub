@@ -26,7 +26,7 @@ interface OrgProfile {
   userId: string;
   orgId: string;
   role: string;
-  plan: string;
+  plan: string | null;
 }
 
 type Severity = 'critical' | 'warning' | 'info';
