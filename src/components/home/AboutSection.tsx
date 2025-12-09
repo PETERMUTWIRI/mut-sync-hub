@@ -126,7 +126,7 @@ const AboutSection: React.FC = () => {
           >
             <Button
               className="group bg-[#2E7D7D] text-white px-8 py-3 text-base font-semibold rounded-md hover:bg-[#256363] transition-colors duration-200 shadow-sm hover:shadow-md"
-              onClick={() => router.push('/signup')}
+              onClick={() => router.push('/user-dashboard-main')}
             >
               Launch Analytics Engine
               <ChevronRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
