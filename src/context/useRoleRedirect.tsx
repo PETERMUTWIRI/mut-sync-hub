@@ -1,14 +1,23 @@
 // src/context/useRoleRedirect.tsx
 "use client";
+
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@stackframe/stack';
 import { toast } from 'react-hot-toast';
-// We no longer call the server helper directly from client code.
-// Fetch a secure API route instead which returns the profile/org data.
+
+// Cache interface for type safety
+interface UserSessionCache {
+  role: string;
+  orgId: string;
+  profileId: string;
+  expiresAt: number;
+}
+
+// Internal fetch function (no circular dependencies)
 const fetchOrgProfile = async () => {
-  const res = await fetch('/api/org-profile');
-  if (!res.ok) throw new Error('Failed to fetch org profile');
+  const res = await fetch('/api/org-profile', { credentials: 'include' });
+  if (!res.ok) throw new Error(`Failed to fetch org profile: ${res.status}`);
   return res.json();
 };
 
@@ -18,7 +27,9 @@ export const useRoleRedirect = () => {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (pathname !== '/sign-in' && pathname !== '/auth/callback') {
+    // Only run on auth pages
+    const authPages = ['/sign-in', '/sign-up', '/auth/callback'];
+    if (!pathname || !authPages.includes(pathname)) {
       console.log('useRoleRedirect: Skipping on non-auth page', pathname);
       return;
     }
@@ -32,41 +43,71 @@ export const useRoleRedirect = () => {
 
     const fetchRole = async () => {
       try {
-        const cachedSession = localStorage.getItem('userSession');
-        if (cachedSession) {
-          const parsed = JSON.parse(cachedSession);
-          if (parsed.expiresAt && parsed.expiresAt > Date.now()) {
-            const role = parsed.role?.toLowerCase() || 'user';
-            console.log('useRoleRedirect: Role from cache', role);
+        // 1. Check cache first
+        const cachedRaw = localStorage.getItem('userSession');
+        if (cachedRaw) {
+          const cached = JSON.parse(cachedRaw) as UserSessionCache;
+          if (cached.expiresAt > Date.now()) {
+            const role = cached.role?.toLowerCase() || 'user';
+            console.log('useRoleRedirect: Using cached role', role);
+            
             if (isMounted) {
-              router.push(role === 'admin' ? '/admin-dashboard' : '/resources');
-              toast.success(`Redirecting to ${role} dashboard`);
+              // SUPER_ADMIN always goes to admin dashboard
+              if (role === 'super_admin') {
+                router.push('/admin-dashboard');
+                toast.success('Welcome to Mission Control');
+              } else if (role === 'admin') {
+                router.push('/admin-dashboard');
+                toast.success('Welcome to Admin Dashboard');
+              } else {
+                // REGULAR USER goes to their dashboard
+                router.push('/user-dashboard-main');
+                toast.success('Welcome to Analytics Engine');
+              }
             }
             return;
           }
+          // Cache expired, clear it
           localStorage.removeItem('userSession');
         }
 
-  console.log('useRoleRedirect: Fetching role for user', user.id);
-  const payload = await fetchOrgProfile();
-  const { role = 'USER', orgId, isTechnical = false } = payload || {};
-  const fetchedRole = (role || 'USER').toLowerCase();
-        console.log('useRoleRedirect: Role fetched', fetchedRole);
-        localStorage.setItem('userSession', JSON.stringify({
-          role: fetchedRole,
+        // 2. Fetch fresh from backend
+        console.log('useRoleRedirect: Fetching fresh profile');
+        const payload = await fetchOrgProfile();
+        
+        const { role = 'USER', orgId, profileId } = payload || {};
+        const normalizedRole = (role || 'USER').toLowerCase();
+
+        // 3. Cache the result
+        const session: UserSessionCache = {
+          role: normalizedRole,
           orgId,
-          isTechnical,
-          expiresAt: Date.now() + 60 * 60 * 1000,
-        }));
+          profileId,
+          expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+        };
+        localStorage.setItem('userSession', JSON.stringify(session));
+
+        console.log('useRoleRedirect: Fresh role fetched', normalizedRole);
+
         if (isMounted) {
-          router.push(fetchedRole === 'admin' ? '/admin-dashboard' : '/resources');
-          toast.success(`Redirecting to ${fetchedRole} dashboard`);
+          // 4. Route based on role
+          if (normalizedRole === 'super_admin') {
+            router.push('/admin-dashboard');
+            toast.success('Owner access granted');
+          } else if (normalizedRole === 'admin') {
+            router.push('/admin-dashboard');
+            toast.success('Admin access granted');
+          } else {
+            router.push('/user-dashboard-main'); // ✅ CORRECT: User dashboard
+            toast.success('Access granted');
+          }
         }
       } catch (error) {
         console.error('useRoleRedirect: Failed to fetch role', error);
         if (isMounted) {
-          router.push('/resources');
-          toast.error('Failed to fetch role, redirecting to resources');
+          // Fallback to safe route
+          router.push('/user-dashboard-main');
+          toast.error('Authentication issue, redirecting to dashboard');
         }
       }
     };

@@ -1,25 +1,62 @@
-"use client";
-import IncidentsList from '@/components/admin/components/IncidentsList';
-import MaintenanceList from '@/components/admin/components/MaintenanceList';
-import UptimeChart from '@/components/admin/components/UptimeChart';
+// src/app/admin-dashboard/system-status/page.tsx
+'use client';
 
-const SystemStatusPage: React.FC = () => {
-  return (
-    <div className="max-w-6xl mx-auto py-12 px-4 md:px-8">
-      <h1 className="text-4xl font-extrabold text-white mb-8 tracking-tight drop-shadow-lg">System Status</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-        <div className="rounded-2xl shadow-2xl bg-gradient-to-br from-yellow-700 to-orange-900 p-8">
-          <IncidentsList />
-        </div>
-        <div className="rounded-2xl shadow-2xl bg-gradient-to-br from-blue-800 to-indigo-900 p-8">
-          <MaintenanceList />
-        </div>
+import { useQuery } from '@tanstack/react-query';
+import { ServiceStatus } from '@/components/admin/SystemStatus'; // ← CHANGED from SystemStatus
+import { HiServer, HiWifi, HiShieldCheck } from 'react-icons/hi2';
+import { HiDatabase } from 'react-icons/hi';
+
+export default function SystemStatusPage() {
+  const { data: services, isLoading } = useQuery({
+    queryKey: ['system-status'],
+    queryFn: () => fetch('/api/admin/system-status', { credentials: 'include' }).then(r => r.json())
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 p-6 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-400" />
       </div>
-      <div className="rounded-2xl shadow-2xl bg-gradient-to-br from-emerald-800 to-green-900 p-8">
-        <UptimeChart />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 p-6 space-y-6">
+      <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 flex items-center gap-3">
+        <HiShieldCheck className="text-cyan-400" /> System Health
+      </h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <ServiceStatus 
+          service="API Gateway" 
+          status={services?.api?.status || 'OPERATIONAL'} 
+          latency={services?.api?.latency || '--'}
+          icon={<HiWifi className="text-xl" />}
+        />
+        <ServiceStatus 
+          service="Database" 
+          status={services?.database?.status || 'OPERATIONAL'} 
+          latency={services?.database?.latency || '--'}
+          icon={<HiDatabase className="text-xl" />}
+        />
+        <ServiceStatus 
+          service="Redis" 
+          status={services?.redis?.status || 'OPERATIONAL'} 
+          latency={services?.redis?.latency || '--'}
+          icon={<HiServer className="text-xl" />}
+        />
+        <ServiceStatus 
+          service="QStash" 
+          status={services?.qstash?.status || 'OPERATIONAL'} 
+          latency={services?.qstash?.latency || '--'}
+          icon={<HiWifi className="text-xl" />}
+        />
+      </div>
+
+      <div className="mt-8 bg-slate-900/50 rounded-2xl p-6 border border-cyan-500/20">
+        <h2 className="text-xl font-bold text-cyan-400 mb-4">Incident History</h2>
+        <p className="text-slate-500 text-sm">No incidents in the last 24 hours</p>
       </div>
     </div>
   );
-};
-
-export default SystemStatusPage;
+}

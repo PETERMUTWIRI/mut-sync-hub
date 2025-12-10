@@ -69,7 +69,7 @@ model Organization {
   paymentReconciliations PaymentReconciliation[]
   subscription           Subscription?
   userProfiles           UserProfile[]
-
+  supportTickets         SupportTicket[] 
   @@schema("public")
 }
 
@@ -222,12 +222,12 @@ model SupportTicket {
   created_at   DateTime?      @default(now()) @db.Timestamptz(6)
   updated_at   DateTime?      @default(now()) @db.Timestamptz(6)
   SupportReply SupportReply[]
+  organization Organization?  @relation(fields: [org_id], references: [id]) // ← ADD THIS LINE
 
   @@index([org_id])
   @@index([user_email, status])
   @@schema("public")
 }
-
 model DataSource {
   id           String           @id @default(uuid())
   name         String

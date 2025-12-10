@@ -1,82 +1,87 @@
+// src/app/api/notifications/route.ts
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
-// src/app/api/notifications/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getOrgProfileInternal } from '@/lib/org-profile';
+import { broadcastToOrg, broadcastToOwner } from '@/lib/admin-broadcast';
 
-const INTERNAL_BASE = process.env.NEXT_INTERNAL_ANALYTICS_URL || 'http://localhost:3000';
-
-async function getOrgProfileInternal(req: NextRequest) {
-  const res = await fetch(`${INTERNAL_BASE}/api/org-profile`, {
-    headers: { cookie: req.headers.get('cookie') ?? '' },
-  });
-  if (!res.ok) throw new Error(`Org fetch failed: ${res.status}`);
-  return res.json(); // { userId, orgId, role, plan, ... }
-}
-
-/* ---------- existing reads ---------- */
 export async function GET(req: NextRequest) {
   try {
-    const { orgId } = await getOrgProfileInternal(req);
+    const { orgId } = await getOrgProfileInternal();
     const notifs = await prisma.notification.findMany({
       where: { orgId },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
     return NextResponse.json(notifs);
-  } catch (err: any) {
-    console.error('[/api/notifications] GET:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    console.error('[notifications] GET:', err);
+    return NextResponse.json({ error: 'Failed to fetch notifications' }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
-    const { orgId } = await getOrgProfileInternal(req);
+    const { orgId } = await getOrgProfileInternal();
     const { id } = await req.json();
+    
     await prisma.notification.updateMany({
       where: { id, orgId },
       data: { status: 'READ', readAt: new Date() },
     });
+    
+    await broadcastToOrg(orgId, 'notification:read', { id });
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    console.error('[/api/notifications] PATCH:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    console.error('[notifications] PATCH:', err);
+    return NextResponse.json({ error: 'Failed to mark as read' }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
-    const { orgId } = await getOrgProfileInternal(req);
+    const { orgId } = await getOrgProfileInternal();
     await prisma.notification.updateMany({
       where: { orgId },
       data: { status: 'READ', readAt: new Date() },
     });
+    
+    await broadcastToOrg(orgId, 'notification:readAll', {});
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    console.error('[/api/notifications] PUT:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    console.error('[notifications] PUT:', err);
+    return NextResponse.json({ error: 'Failed to mark all as read' }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
-    const { orgId } = await getOrgProfileInternal(req);
+    const { orgId } = await getOrgProfileInternal();
     await prisma.notification.deleteMany({ where: { orgId } });
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
-    console.error('[/api/notifications] DELETE:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    console.error('[notifications] DELETE:', err);
+    return NextResponse.json({ error: 'Failed to delete notifications' }, { status: 500 });
   }
 }
 
-/* ---------- server-only insert ---------- */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { orgId, title, message, type = 'INFO', isOrgWide = true, userId } = body;
-    // we still need a createdBy – use the caller’s profileId
-    const { userId: profileId } = await getOrgProfileInternal(req);
+    
+    // Get full profile for audit trail
+    const { profileId, orgId: creatorOrgId } = await getOrgProfileInternal();
+
+    // Security: prevent cross-org notification creation
+    if (orgId !== creatorOrgId) {
+      return NextResponse.json({ 
+        error: 'Cross-org notifications forbidden',
+        details: `Cannot create notification for org ${orgId} when authenticated in ${creatorOrgId}`
+      }, { status: 403 });
+    }
 
     const notif = await prisma.notification.create({
       data: {
@@ -87,17 +92,21 @@ export async function POST(req: NextRequest) {
         isOrgWide,
         userId,
         status: 'UNREAD',
-        createdBy: profileId,
+        createdBy: profileId, // Correct audit trail
       },
     });
 
-    // real-time push
-    const { DataGateway } = await import('@/lib/websocket');
-    await DataGateway.broadcastToOrg(orgId, 'notification:new', notif);
+    // Broadcast to users (org stream) and owner (global stream)
+    await broadcastToOrg(orgId, 'notification:new', notif);
+    await broadcastToOwner('notification:new', {
+      ...notif,
+      orgId,
+      broadcastType: 'user_notification'
+    });
 
     return NextResponse.json(notif);
-  } catch (err: any) {
-    console.error('[/api/notifications] POST:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err) {
+    console.error('[notifications] POST:', err);
+    return NextResponse.json({ error: 'Failed to create notification' }, { status: 500 });
   }
 }

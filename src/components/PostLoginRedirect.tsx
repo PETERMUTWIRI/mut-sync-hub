@@ -4,12 +4,14 @@
 import { useRoleRedirect } from '@/context/useRoleRedirect';
 
 export function PostLoginRedirect() {
-  useRoleRedirect();
+  useRoleRedirect(); // Single source of truth
+  
   return (
-    <div className="flex items-center justify-center min-h-screen bg-[#F7FAFC] dark:bg-[#1E2A44]">
+    <div className="flex items-center justify-center min-h-screen bg-cockpit-bg">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2E7D7D] mx-auto"></div>
-        <p className="mt-2 text-[#2E7D7D] text-lg font-semibold">Redirecting...</p>
+        <div className="w-16 h-16 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mx-auto mb-4"></div>
+        <h2 className="text-2xl font-bold text-cyan-400">Welcome Back</h2>
+        <p className="text-gray-400 mt-2">Routing to your workspace...</p>
       </div>
     </div>
   );

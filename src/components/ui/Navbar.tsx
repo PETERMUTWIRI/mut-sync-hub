@@ -1,3 +1,4 @@
+// src/components/Navbar.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -5,10 +6,34 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ChevronDown, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
 
 const Navbar: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [accordion, setAccordion] = useState<string | null>(null);
+
+  // Fetch role with 5-minute cache (no auth pages)
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ['org-profile'],
+    queryFn: async () => {
+      const res = await fetch('/api/org-profile', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch profile');
+      return res.json();
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 1,
+    enabled: typeof window !== 'undefined'
+  });
+
+  const role = profile?.role?.toLowerCase();
+  const isSuperAdmin = role === 'super_admin';
+  const isAdmin = role === 'admin';
+  const isUser = !isSuperAdmin && !isAdmin;
+
+  // Dashboard link logic
+  const dashboardLink = isSuperAdmin
+    ? { href: '/admin-dashboard', label: 'Mission Control', color: 'text-red-400' }
+    : { href: '/user-dashboard-main', label: 'Analytics Engine', color: 'text-cyan-400' };
 
   /* ----------  MOBILE ACCORDION ITEM  ---------- */
   const AccordionItem = ({ title, links }: { title: string; links: { label: string; href: string }[] }) => (
@@ -64,6 +89,18 @@ const Navbar: React.FC = () => {
           </button>
         </div>
 
+        {/* Role badge in mobile menu */}
+        {!isLoading && role && (
+          <div className="px-4 py-2 mb-4 rounded-lg bg-cockpit-panel border border-gray-700">
+            <span className={cn(
+              "text-xs font-bold uppercase",
+              isSuperAdmin ? 'text-red-400' : 'text-cyan-400'
+            )}>
+              Role: {role}
+            </span>
+          </div>
+        )}
+
         <nav className="flex-1 space-y-1 overflow-y-auto">
           <Link href="/" onClick={() => setOpen(false)} className="block px-4 py-3 text-white hover:text-cyan-400">Home</Link>
 
@@ -100,7 +137,29 @@ const Navbar: React.FC = () => {
             ]}
           />
 
-          <Link href="/user-dashboard-main" onClick={() => setOpen(false)} className="block px-4 py-3 text-white hover:text-cyan-400">Analytics Engine</Link>
+          {/* Dashboard link based on role */}
+          <Link 
+            href={dashboardLink.href} 
+            onClick={() => setOpen(false)} 
+            className={cn(
+              "block px-4 py-3 font-semibold",
+              dashboardLink.color,
+              "hover:bg-white/5"
+            )}
+          >
+            {dashboardLink.label}
+          </Link>
+
+          {/* Admin panel link for super admin */}
+          {isSuperAdmin && (
+            <Link 
+              href="/admin-dashboard" 
+              onClick={() => setOpen(false)} 
+              className="block px-4 py-3 text-red-400 font-bold hover:bg-red-500/10"
+            >
+              Admin Panel
+            </Link>
+          )}
         </nav>
 
         {/* Auth */}
@@ -112,7 +171,7 @@ const Navbar: React.FC = () => {
     </div>
   );
 
-  /* ----------  DESKTOP MEGA-DROPDOWN (unchanged)  ---------- */
+  /* ----------  DESKTOP MEGA-DROPDOWN  ---------- */
   const MegaDropdown = () => (
     <div className="relative group hidden lg:block">
       <button className="flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white bg-white/5 hover:bg-cyan-400/10 hover:text-cyan-400 transition-all duration-200">
@@ -169,18 +228,59 @@ const Navbar: React.FC = () => {
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-6">
             <MegaDropdown />
-            <Link
-              href="/user-dashboard-main"
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white hover:bg-white/10 hover:text-cyan-400 transition-all duration-200"
-            >
-              Analytics Engine
-            </Link>
+            
+            {/* Dashboard link with role-based styling */}
+            {!isLoading && (
+              <Link
+                href={dashboardLink.href}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200",
+                  "hover:bg-white/10",
+                  isSuperAdmin ? "hover:text-red-400" : "hover:text-cyan-400",
+                  isSuperAdmin && "font-bold"
+                )}
+              >
+                {dashboardLink.label}
+              </Link>
+            )}
+
+            {/* Loading state for dashboard link */}
+            {isLoading && (
+              <div className="px-4 py-2">
+                <div className="w-24 h-6 bg-gray-700 rounded animate-pulse"></div>
+              </div>
+            )}
           </nav>
 
           {/* Auth + Hamburger */}
           <div className="flex items-center gap-3">
-            {/* Desktop Auth */}
-            <div className="hidden lg:flex items-center gap-2">
+            {/* Desktop Auth + Role Indicators */}
+            <div className="hidden lg:flex items-center gap-3">
+              {!isLoading && role && (
+                <>
+                  {/* Role badge */}
+                  <span className={cn(
+                    "text-xs px-3 py-1 rounded-full font-bold uppercase tracking-wide",
+                    isSuperAdmin 
+                      ? 'bg-red-500/20 text-red-400' 
+                      : 'bg-cyan-500/20 text-cyan-400'
+                  )}>
+                    {isSuperAdmin ? 'OWNER' : role}
+                  </span>
+
+                  {/* Admin panel button for super admin */}
+                  {isSuperAdmin && (
+                    <Link
+                      href="/admin-dashboard"
+                      className="bg-red-500 text-white px-3 py-2 text-sm font-bold rounded-md hover:bg-red-400 transition-all duration-200 shadow-lg"
+                    >
+                      Admin Panel
+                    </Link>
+                  )}
+                </>
+              )}
+
+              {/* Auth buttons */}
               <Link
                 href="/sign-in"
                 className="bg-transparent border border-white/20 text-white hover:bg-white/10 hover:border-cyan-400 px-4 py-2 text-sm font-semibold rounded-md transition-all duration-200"
@@ -207,7 +307,7 @@ const Navbar: React.FC = () => {
         </div>
       </header>
 
-      {/* Mobile Menu Portal */}
+      {/* Mobile Menu */}
       <MobileMenu />
     </>
   );
