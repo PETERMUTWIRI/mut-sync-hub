@@ -1,5 +1,5 @@
 "use client";
-import UserTable from '@/components/admin/components/UserTable';
+import UserTable from '@/components/admin/UserTable';
 
 
 const UserManagementPage: React.FC = () => {
