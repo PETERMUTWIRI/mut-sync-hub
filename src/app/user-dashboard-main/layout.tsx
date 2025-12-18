@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ProfileCompletionBanner } from '@/components/profile-completion-banner';
-import { useUser } from '@stackframe/stack';
+import { useUser } from '@stackframe/stack'; // Add useStackApp
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { Toaster } from 'react-hot-toast';
@@ -14,13 +14,18 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
   const user = useUser({ or: 'redirect' });
   const [queryClient] = useState(() => new QueryClient());
 
+  const handleLogout = async () => {
+    await user.signOut(); // Sign out via StackAuth
+    window.location.href = '/'; // Redirect to home
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen w-full bg-[#0B1020] text-white font-inter">
         {/* TOP NAVBAR (replaces sidebar) */}
         <DashboardSidebar
           displayName={user.displayName || (user as any).email || 'User'}
-          handleLogout={() => { window.location.href = '/handler/sign-out'; }}
+          handleLogout={handleLogout} // Pass the async function
         />
 
         {/* MAIN CONTENT */}
