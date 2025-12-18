@@ -1,11 +1,13 @@
 // File: src/app/sign-in/page.tsx
 "use client";
 import { CredentialSignIn, OAuthButton } from '@stackframe/stack';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PostLoginRedirect } from '@/components/PostLoginRedirect';
 import { useUser } from '@stackframe/stack';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
 import { useEffect, useState } from 'react';
+import { stackClientApp } from '@/lib/stack.client'; // Import stack client for password reset URL
 
 export default function SignInPage() {
   const [isClient, setIsClient] = useState(false);
@@ -45,6 +47,15 @@ export default function SignInPage() {
               </div>
             </div>
             <CredentialSignIn />
+            {/* ✅ Forgot password link added below credential sign-in */}
+            <div className="flex justify-center pt-2">
+              <Link
+                href={stackClientApp.urls.passwordReset}
+                className="text-sm text-cyan-400 hover:text-cyan-300 underline-offset-4 hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
