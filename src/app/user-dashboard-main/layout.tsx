@@ -3,12 +3,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { ProfileCompletionBanner } from '@/components/profile-completion-banner';
-import { useUser } from '@stackframe/stack'; // Add useStackApp
+import { useUser } from '@stackframe/stack';
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { Toaster } from 'react-hot-toast';
 
-const DashboardSidebar = dynamic(() => import('@/components/user/DashboardSidebar'));
+// ✅ FIXED: Add .then() to extract default export
+const DashboardSidebar = dynamic(() => 
+  import('@/components/user/DashboardSidebar').then((mod) => mod.default)
+);
 
 export default function UserDashboardLayout({ children }: { children: React.ReactNode }) {
   const user = useUser({ or: 'redirect' });
@@ -16,17 +19,17 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
 
   const handleLogout = async () => {
     await user.signOut({
-    redirectUrl: window.location.origin + '/', // Force home page
-  }); // Redirect to home
+      redirectUrl: window.location.origin + '/', // Redirect to home
+    });
   };
 
   return (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen w-full bg-[#0B1020] text-white font-inter">
-        {/* TOP NAVBAR (replaces sidebar) */}
+        {/* TOP NAVBAR */}
         <DashboardSidebar
           displayName={user.displayName || (user as any).email || 'User'}
-          handleLogout={handleLogout} // Pass the async function
+          handleLogout={handleLogout}
         />
 
         {/* MAIN CONTENT */}
