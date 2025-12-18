@@ -15,8 +15,9 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
   const [queryClient] = useState(() => new QueryClient());
 
   const handleLogout = async () => {
-    await user.signOut(); // Sign out via StackAuth
-    window.location.href = '/'; // Redirect to home
+    await user.signOut({
+    redirectUrl: window.location.origin + '/', // Force home page
+  }); // Redirect to home
   };
 
   return (
