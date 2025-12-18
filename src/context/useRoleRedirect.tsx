@@ -28,10 +28,15 @@ export const useRoleRedirect = () => {
       return;
     }
 
-    // ⭐ CRITICAL: Wait for user to be FULLY authenticated
+    // Wait for user to be fully authenticated
     if (!user || !user.id) {
       console.log('Waiting for user session...');
-      // Keep loading state, don't proceed
+      setIsLoading(true);
+      
+      // If we've been waiting too long, redirect
+      if (retryCount > 5) {
+        router.push('/sign-in?error=session_timeout');
+      }
       return;
     }
 
@@ -56,8 +61,8 @@ export const useRoleRedirect = () => {
           localStorage.removeItem('userSession');
         }
 
-        // Wait for cookie to be set after OAuth
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+        // Wait for cookie to be available
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         const res = await fetch('/api/org-profile', {
           credentials: 'include',
@@ -65,11 +70,14 @@ export const useRoleRedirect = () => {
         });
 
         if (res.status === 401 && retryCount < 3) {
-          console.log(`Retry ${retryCount + 1}/3: Session not ready`);
+          console.log(`Retry ${retryCount + 1}/3: 401 Unauthorized`);
           setRetryCount(prev => prev + 1);
+          
+          // Use exponential backoff
           setTimeout(() => {
             if (isMounted) fetchRole();
-          }, 1000);
+          }, 1000 * Math.pow(2, retryCount));
+          
           return;
         }
 
@@ -114,7 +122,7 @@ export const useRoleRedirect = () => {
       }
     };
 
-    // Reset retry count when user changes
+    // Reset retry count when user becomes available
     setRetryCount(0);
     fetchRole();
 
