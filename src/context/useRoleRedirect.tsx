@@ -1,12 +1,11 @@
-// src/context/useRoleRedirect.tsx
+// File: src/context/useRoleRedirect.tsx
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '@stackframe/stack';
 import { toast } from 'react-hot-toast';
 
-// Cache interface for type safety
 interface UserSessionCache {
   role: string;
   orgId: string;
@@ -14,101 +13,100 @@ interface UserSessionCache {
   expiresAt: number;
 }
 
-// Internal fetch function (no circular dependencies)
-const fetchOrgProfile = async () => {
-  const res = await fetch('/api/org-profile', { credentials: 'include' });
-  if (!res.ok) throw new Error(`Failed to fetch org profile: ${res.status}`);
-  return res.json();
-};
-
 export const useRoleRedirect = () => {
   const user = useUser();
   const router = useRouter();
   const pathname = usePathname();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Only run on auth pages
-    const authPages = ['/sign-in', '/sign-up', '/auth/callback'];
+    const authPages = ['/sign-in', '/sign-up', '/auth/callback', '/handler/oauth-callback'];
     if (!pathname || !authPages.includes(pathname)) {
-      console.log('useRoleRedirect: Skipping on non-auth page', pathname);
       return;
     }
 
-    if (!user) {
-      console.log('useRoleRedirect: No user, staying on', pathname);
+    // ⭐ CRITICAL: Wait for user to be authenticated
+    if (!user || !user.id) {
+      console.log('Waiting for user session...');
+      setIsLoading(false);
       return;
     }
 
     let isMounted = true;
 
     const fetchRole = async () => {
+      setIsLoading(true);
+      
       try {
-        // 1. Check cache first
+        // Check cache first
         const cachedRaw = localStorage.getItem('userSession');
         if (cachedRaw) {
           const cached = JSON.parse(cachedRaw) as UserSessionCache;
           if (cached.expiresAt > Date.now()) {
             const role = cached.role?.toLowerCase() || 'user';
-            console.log('useRoleRedirect: Using cached role', role);
-            
             if (isMounted) {
-              // SUPER_ADMIN always goes to admin dashboard
-              if (role === 'super_admin') {
-                router.push('/admin-dashboard');
-                toast.success('Welcome to Mission Control');
-              } else if (role === 'admin') {
-                router.push('/admin-dashboard');
-                toast.success('Welcome to Admin Dashboard');
-              } else {
-                // REGULAR USER goes to their dashboard
-                router.push('/user-dashboard-main');
-                toast.success('Welcome to Analytics Engine');
-              }
+              routeUser(role);
+              setIsLoading(false);
             }
             return;
           }
-          // Cache expired, clear it
           localStorage.removeItem('userSession');
         }
 
-        // 2. Fetch fresh from backend
-        console.log('useRoleRedirect: Fetching fresh profile');
-        const payload = await fetchOrgProfile();
-        
+        // Fetch fresh profile
+        const res = await fetch('/api/org-profile', {
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (res.status === 401) {
+          console.error('Session not ready, retrying...');
+          // Retry after 500ms
+          setTimeout(() => {
+            if (isMounted) fetchRole();
+          }, 500);
+          return;
+        }
+
+        if (!res.ok) throw new Error(`Failed: ${res.status}`);
+
+        const payload = await res.json();
         const { role = 'USER', orgId, profileId } = payload || {};
         const normalizedRole = (role || 'USER').toLowerCase();
 
-        // 3. Cache the result
+        // Cache the result
         const session: UserSessionCache = {
           role: normalizedRole,
           orgId,
           profileId,
-          expiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+          expiresAt: Date.now() + 60 * 60 * 1000,
         };
         localStorage.setItem('userSession', JSON.stringify(session));
 
-        console.log('useRoleRedirect: Fresh role fetched', normalizedRole);
-
         if (isMounted) {
-          // 4. Route based on role
-          if (normalizedRole === 'super_admin') {
-            router.push('/admin-dashboard');
-            toast.success('Owner access granted');
-          } else if (normalizedRole === 'admin') {
-            router.push('/admin-dashboard');
-            toast.success('Admin access granted');
-          } else {
-            router.push('/user-dashboard-main'); // ✅ CORRECT: User dashboard
-            toast.success('Access granted');
-          }
+          routeUser(normalizedRole);
         }
       } catch (error) {
-        console.error('useRoleRedirect: Failed to fetch role', error);
+        console.error('useRoleRedirect error:', error);
         if (isMounted) {
-          // Fallback to safe route
+          toast.error('Authentication error, redirecting...');
           router.push('/user-dashboard-main');
-          toast.error('Authentication issue, redirecting to dashboard');
         }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    const routeUser = (role: string) => {
+      if (role === 'super_admin' || role === 'admin') {
+        router.push('/admin-dashboard');
+        toast.success('Welcome to Mission Control');
+      } else {
+        router.push('/user-dashboard-main');
+        toast.success('Welcome to Analytics Engine');
       }
     };
 
@@ -118,6 +116,6 @@ export const useRoleRedirect = () => {
       isMounted = false;
     };
   }, [user, pathname, router]);
-};
 
-export default useRoleRedirect;
+  return { isLoading };
+};
