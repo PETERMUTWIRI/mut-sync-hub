@@ -1,4 +1,4 @@
-// src/app/sign-in/page.tsx
+// File: src/app/sign-in/page.tsx
 "use client";
 import { CredentialSignIn, OAuthButton } from '@stackframe/stack';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +16,7 @@ export default function SignInPage() {
   }, []);
 
   if (!isClient) {
-    return null; // Render nothing on server to avoid hydration mismatch
+    return null;
   }
 
   if (user) {

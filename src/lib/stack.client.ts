@@ -33,7 +33,7 @@ const stackClientApp = new StackClientApp({
     home: '/',
     signIn: '/sign-in',
     signUp: '/sign-up',
-    handler: '/handler/callback',
+    handler: '/handler',
   },
 });
 
