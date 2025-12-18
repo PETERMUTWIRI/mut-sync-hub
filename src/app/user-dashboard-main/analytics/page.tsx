@@ -353,12 +353,7 @@ export default function AnalyticsCockpit() {
       } catch (error) {
         console.error('[Cockpit] Failed to load profile:', error);
         if (isMounted) {
-          setProfile({
-            userId: 'user_synth_456',
-            orgId: 'org_synth_123',
-            role: 'USER',
-            plan: '088c6a32-7840-4188-bc1a-bdc0c6bee723'
-          });
+          setProfile(null);
         }
       }
     };
