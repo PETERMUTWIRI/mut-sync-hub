@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       await tx.supportTicket.update({
         where: { id: ticketId },
         data: { 
-          status: 'pending',
+          status: 'PENDING',
           updated_at: new Date() 
         }
       });
