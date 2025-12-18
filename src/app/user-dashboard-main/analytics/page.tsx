@@ -22,11 +22,25 @@ import { useAIQuery } from '@/hooks/useAIQuery';
 
 // ── TYPE DEFINITIONS ────────────────────────────────────────────────────
 
+import { Prisma, $Enums } from '@prisma/client';
+
 interface OrgProfile {
   userId: string;
+  profileId: string;
   orgId: string;
   role: string;
-  plan: string | null;
+  email: string | null;
+  organization: {
+    id: string;
+    name: string;
+    status: $Enums.OrgStatus;
+    createdAt: Date;
+    updatedAt: Date;
+    subdomain: string;
+    settings: Prisma.JsonValue | null;
+    planId: string | null;
+  };
+  
 }
 
 type Severity = 'critical' | 'warning' | 'info';
@@ -350,6 +364,7 @@ export default function AnalyticsCockpit() {
       try {
         const result = await getOrgProfileInternal();
         if (isMounted) setProfile(result);
+
       } catch (error) {
         console.error('[Cockpit] Failed to load profile:', error);
         if (isMounted) {
@@ -374,7 +389,7 @@ export default function AnalyticsCockpit() {
     isTriggering,
     triggerComputation,
     reconnect,
-  } = useAnalyticsPoll(profile?.orgId || null, 'default_source');
+  } = useAnalyticsPoll(profile?.organization.id || null, 'default_source');
 
   // Transform backend metrics to KPIData format
   const transformMetricsToKPIs = useCallback((metrics: any): KPIData[] => {
@@ -457,7 +472,7 @@ export default function AnalyticsCockpit() {
 
   const handleAIQuery = useCallback(async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && aiQuery.trim() && profile) {
-      await askQuestion(aiQuery, profile.orgId);
+      await askQuestion(aiQuery, profile.organization.id);
       setAiQuery('');
     }
   }, [aiQuery, profile, askQuestion]);
@@ -529,9 +544,9 @@ export default function AnalyticsCockpit() {
               <Menu className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-cyan-400">Analytics Copilot</h1>
-              <p className="text-xs text-gray-400">{profile.orgId} • Tier: {profile.plan}</p>
-            </div>
+                <h1 className="text-2xl font-bold text-cyan-400">Analytics Copilot</h1>
+                <p className="text-xs text-gray-400">{profile.organization.id} • Tier: {profile.organization.planId}</p>
+              </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">

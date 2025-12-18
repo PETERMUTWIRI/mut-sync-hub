@@ -1,10 +1,29 @@
+'use server';
+
 // src/lib/org-profile.ts
 import { prisma } from '@/lib/prisma';
 import { stackServerApp } from '@/lib/stack';
-import { Prisma } from '@prisma/client';
+import { Prisma, $Enums } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
-export async function getOrgProfileInternal() {
+export async function getOrgProfileInternal(): Promise<{
+  userId: string;
+  profileId: string;
+  orgId: string;
+  role: string;
+  email: string | null;
+  organization: {
+    id: string;
+    name: string;
+    status: $Enums.OrgStatus;
+    createdAt: Date;
+    updatedAt: Date;
+    subdomain: string;
+    settings: Prisma.JsonValue | null;
+    planId: string | null;
+  };
+  plan: Prisma.PlanGetPayload<true> | null;
+}> {
   const user = await stackServerApp.getUser({ or: 'throw', tokenStore: 'nextjs-cookie' });
 
   let profile = await prisma.userProfile.findUnique({
@@ -50,6 +69,9 @@ export async function getOrgProfileInternal() {
     orgId: profile.orgId,
     role: profile.role,
     email: user.primaryEmail,
-    organization: profile.organization
+    organization: profile.organization,
+    plan: await prisma.plan.findUnique({
+      where: { id: profile.organization.planId ?? '088c6a32-7840-4188-bc1a-bdc0c6bee723' }
+    })
   };
 }
