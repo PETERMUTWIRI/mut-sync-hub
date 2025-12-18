@@ -8,7 +8,7 @@ export const dynamic = 'force-static'; // Force static rendering
 
 export default function AuthCallback() {
   useRoleRedirect();
-
+  //auth
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#F7FAFC] dark:bg-[#1E2A44]">
       <PostLoginRedirect />
