@@ -2,12 +2,10 @@
 'use client';
 
 import { useRoleRedirect } from '@/context/useRoleRedirect';
-import { useEffect } from 'react';
 
 export function PostLoginRedirect() {
   const { isLoading } = useRoleRedirect();
 
-  // Show loading UI while redirecting
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-cockpit-bg">
@@ -20,5 +18,5 @@ export function PostLoginRedirect() {
     );
   }
 
-  return null; // Show nothing when redirecting
+  return null;
 }

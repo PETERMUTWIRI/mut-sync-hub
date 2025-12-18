@@ -18,18 +18,20 @@ export const useRoleRedirect = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [isLoading, setIsLoading] = useState(true);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     // Only run on auth pages
-    const authPages = ['/sign-in', '/sign-up', '/auth/callback', '/handler/oauth-callback'];
+    const authPages = ['/sign-in', '/sign-up', '/handler/oauth-callback'];
     if (!pathname || !authPages.includes(pathname)) {
+      setIsLoading(false);
       return;
     }
 
-    // ⭐ CRITICAL: Wait for user to be authenticated
+    // ⭐ CRITICAL: Wait for user to be FULLY authenticated
     if (!user || !user.id) {
       console.log('Waiting for user session...');
-      setIsLoading(false);
+      // Keep loading state, don't proceed
       return;
     }
 
@@ -54,18 +56,20 @@ export const useRoleRedirect = () => {
           localStorage.removeItem('userSession');
         }
 
-        // Fetch fresh profile
+        // Wait for cookie to be set after OAuth
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+
         const res = await fetch('/api/org-profile', {
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
         });
 
-        if (res.status === 401) {
-          console.error('Session not ready, retrying...');
-          // Retry after 500ms
+        if (res.status === 401 && retryCount < 3) {
+          console.log(`Retry ${retryCount + 1}/3: Session not ready`);
+          setRetryCount(prev => prev + 1);
           setTimeout(() => {
             if (isMounted) fetchRole();
-          }, 500);
+          }, 1000);
           return;
         }
 
@@ -110,12 +114,14 @@ export const useRoleRedirect = () => {
       }
     };
 
+    // Reset retry count when user changes
+    setRetryCount(0);
     fetchRole();
 
     return () => {
       isMounted = false;
     };
-  }, [user, pathname, router]);
+  }, [user, pathname, router, retryCount]);
 
   return { isLoading };
 };
