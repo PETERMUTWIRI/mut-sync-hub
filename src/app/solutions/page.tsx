@@ -14,28 +14,27 @@ import {
   HiOutlineChatBubbleLeftRight, HiOutlineMicrophone, HiOutlineSpeakerWave, HiOutlineSpeakerXMark, HiOutlinePhone, HiOutlineEnvelope, HiOutlineCalendar
 } from 'react-icons/hi2';
 import { useSearchParams } from 'next/navigation';
-// import  SolutionsAgent from '@/components/SolutionsAgent';
-import { X, Calendar, Check, ChevronDown, ChevronUp, ArrowRight, Star, Briefcase, Cpu, Cloud, Database, Bot, Globe, Code2, LayoutGrid } from 'lucide-react';
-import { Input } from '@/components/ui/input'; // ➜  add this line
+import { X, Calendar, Check, ChevronDown, ChevronUp, ArrowRight, Star, Briefcase, Cpu, Cloud, Database, Bot, Globe, Code2, LayoutGrid, Sparkles, Zap, Shield, TrendingUp, Users, DollarSign, Clock, ArrowUpRight } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { sendConsultationEmail } from '@/lib/emailClient';
 
 // Service categories
 const SERVICE_CATEGORIES = [
-  { id: 'ai', name: 'AI & Automation', icon: <Cpu size={20} /> },
-  { id: 'cloud', name: 'Cloud Solutions', icon: <Cloud size={20} /> },
-  { id: 'data', name: 'Data Engineering', icon: <Database size={20} /> },
-  { id: 'chatbots', name: 'Chatbots', icon: <Bot size={20} /> },
-  { id: 'web', name: 'Web Development', icon: <Globe size={20} /> },
-  { id: 'integrations', name: 'Integrations', icon: <Code2 size={20} /> },
-  { id: 'all', name: 'All Services', icon: <LayoutGrid size={20} /> },
+  { id: 'ai', name: 'AI & Automation', icon: <Cpu size={20} />, color: 'text-cyan-400' },
+  { id: 'cloud', name: 'Cloud Solutions', icon: <Cloud size={20} />, color: 'text-blue-400' },
+  { id: 'data', name: 'Data Engineering', icon: <Database size={20} />, color: 'text-indigo-400' },
+  { id: 'chatbots', name: 'Chatbots', icon: <Bot size={20} />, color: 'text-purple-400' },
+  { id: 'web', name: 'Web Development', icon: <Globe size={20} />, color: 'text-green-400' },
+  { id: 'integrations', name: 'Integrations', icon: <Code2 size={20} />, color: 'text-orange-400' },
+  { id: 'all', name: 'All Services', icon: <LayoutGrid size={20} />, color: 'text-gray-400' },
 ];
 
-// Solutions data (unchanged for brevity)
+// Enhanced solutions data with more details
 const SOLUTIONS = [
   {
     id: "analytics-demo",
     title: "Analytics Demo",
-    description: "Request a live demonstration of our analytics engine and dashboard capabilities.",
+    description: "Request a live demonstration of our analytics engine and dashboard capabilities tailored to your industry.",
     category: "data",
     services: [
       "Custom analytics walkthrough",
@@ -52,7 +51,10 @@ const SOLUTIONS = [
       "Tailored to your use case",
       "Direct expert answers"
     ],
-    isHot: true
+    isHot: true,
+    duration: "45 min",
+    price: "Free",
+    icon: <TrendingUp size={18} />
   },
   {
     id: "ai-agents",
@@ -80,7 +82,10 @@ const SOLUTIONS = [
       "Scalable decision-making capacity",
       "Future-proof adaptability"
     ],
-    isHot: true
+    isHot: true,
+    duration: "8-12 weeks",
+    price: "From $15,000",
+    icon: <Zap size={18} />
   },
   {
     id: "cloud-architecture",
@@ -108,7 +113,10 @@ const SOLUTIONS = [
       "Enhanced security posture",
       "Faster time-to-market"
     ],
-    isHot: true
+    isHot: true,
+    duration: "6-10 weeks",
+    price: "From $12,000",
+    icon: <Shield size={18} />
   },
   {
     id: "data-engineering",
@@ -136,7 +144,10 @@ const SOLUTIONS = [
       "Scalable to petabyte scale",
       "Regulatory compliance assurance"
     ],
-    isHot: true
+    isHot: true,
+    duration: "8-12 weeks",
+    price: "From $18,000",
+    icon: <Database size={18} />
   },
   {
     id: "enterprise-chatbots",
@@ -164,12 +175,15 @@ const SOLUTIONS = [
       "Personalized user experiences",
       "Actionable conversation insights"
     ],
-    isHot: true
+    isHot: true,
+    duration: "6-8 weeks",
+    price: "From $8,000",
+    icon: <Bot size={18} />
   },
   {
     id: "fullstack",
     title: "Full-Stack Development",
-    description: "Build robust and scalable web applications tailored to your business needs.",
+    description: "Build robust and scalable web applications tailored to your business needs with modern architectures.",
     category: "web",
     services: [
       "Custom web applications",
@@ -191,7 +205,10 @@ const SOLUTIONS = [
       "Cross-platform compatibility",
       "Future-proof architecture",
       "Reduced maintenance costs"
-    ]
+    ],
+    duration: "10-16 weeks",
+    price: "From $20,000",
+    icon: <Code2 size={18} />
   },
   {
     id: "cloud-migration",
@@ -218,12 +235,15 @@ const SOLUTIONS = [
       "Improved scalability",
       "Reduced technical debt",
       "Future-ready architecture"
-    ]
+    ],
+    duration: "12-20 weeks",
+    price: "From $25,000",
+    icon: <Cloud size={18} />
   },
   {
     id: "ai-integrations",
     title: "AI-Powered Workflow Automation",
-    description: "Transform business processes with intelligent automation that learns and adapts.",
+    description: "Transform business processes with intelligent automation that learns and adapts to your operations.",
     category: "ai",
     services: [
       "Process mining and analysis",
@@ -246,12 +266,15 @@ const SOLUTIONS = [
       "Enhanced compliance tracking",
       "Rapid ROI (3-6 months)"
     ],
-    isHot: true
+    isHot: true,
+    duration: "6-10 weeks",
+    price: "From $10,000",
+    icon: <Sparkles size={18} />
   },
   {
     id: "multitenant",
     title: "Multi-Tenant SaaS Platforms",
-    description: "Build scalable, secure SaaS solutions with efficient resource sharing and isolation.",
+    description: "Build scalable, secure SaaS solutions with efficient resource sharing and isolation for multiple clients.",
     category: "web",
     services: [
       "Tenant isolation architecture",
@@ -273,12 +296,15 @@ const SOLUTIONS = [
       "Customizable client experiences",
       "Automated billing and reporting",
       "Enterprise-grade security"
-    ]
+    ],
+    duration: "12-18 weeks",
+    price: "From $30,000",
+    icon: <Users size={18} />
   },
   {
     id: "data-analytics",
     title: "Advanced Analytics & BI",
-    description: "Transform raw data into strategic insights with cutting-edge analytics solutions.",
+    description: "Transform raw data into strategic insights with cutting-edge analytics solutions and interactive dashboards.",
     category: "data",
     services: [
       "Predictive analytics modeling",
@@ -300,12 +326,15 @@ const SOLUTIONS = [
       "Predictive capabilities",
       "Democratized data access",
       "Competitive intelligence"
-    ]
+    ],
+    duration: "8-12 weeks",
+    price: "From $15,000",
+    icon: <TrendingUp size={18} />
   },
   {
     id: "api-integrations",
     title: "Enterprise API Integrations",
-    description: "Connect your ecosystem with robust, secure API integrations.",
+    description: "Connect your ecosystem with robust, secure API integrations and microservices architecture.",
     category: "integrations",
     services: [
       "API gateway implementation",
@@ -328,12 +357,15 @@ const SOLUTIONS = [
       "Enhanced system agility",
       "Future-proof connectivity"
     ],
-    isHot: true
+    isHot: true,
+    duration: "6-10 weeks",
+    price: "From $8,000",
+    icon: <Code2 size={18} />
   },
   {
     id: "iot-cloud",
     title: "IoT Cloud Platforms",
-    description: "Connect, manage, and derive value from IoT ecosystems at scale.",
+    description: "Connect, manage, and derive value from IoT ecosystems at scale with edge computing and real-time processing.",
     category: "cloud",
     services: [
       "IoT device management",
@@ -356,12 +388,15 @@ const SOLUTIONS = [
       "Remote monitoring capabilities",
       "New revenue streams"
     ],
-    isHot: true
+    isHot: true,
+    duration: "10-14 weeks",
+    price: "From $22,000",
+    icon: <Cloud size={18} />
   },
   {
     id: "blockchain",
     title: "Blockchain Integration",
-    description: "Leverage distributed ledger technology for secure, transparent transactions.",
+    description: "Leverage distributed ledger technology for secure, transparent transactions and decentralized solutions.",
     category: "integrations",
     services: [
       "Smart contract development",
@@ -383,11 +418,14 @@ const SOLUTIONS = [
       "Immutable audit trails",
       "New business models",
       "Increased stakeholder trust"
-    ]
+    ],
+    duration: "8-12 weeks",
+    price: "From $18,000",
+    icon: <Shield size={18} />
   }
 ];
 
-// Case studies data
+// Case studies data (unchanged but enhanced with icons)
 const CASE_STUDIES = [
   {
     id: "fintech-ai",
@@ -403,7 +441,8 @@ const CASE_STUDIES = [
       "Self-optimizing detection models"
     ],
     technologies: ["Python", "TensorFlow", "Kubernetes", "Apache Kafka", "React"],
-    testimonial: "The AI agent ecosystem reduced our fraud losses by 92% in the first quarter while improving customer experience through fewer false positives. The system continues to improve autonomously."
+    testimonial: "The AI agent ecosystem reduced our fraud losses by 92% in the first quarter while improving customer experience through fewer false positives. The system continues to improve autonomously.",
+    icon: <Shield size={16} />
   },
   {
     id: "healthcare-cloud",
@@ -419,7 +458,8 @@ const CASE_STUDIES = [
       "Enhanced security compliance"
     ],
     technologies: ["AWS", "Azure", "Terraform", "Kubernetes", "React"],
-    testimonial: "Our cloud transformation enabled us to handle 300% patient volume increases during critical periods without service degradation. The cost savings funded our telehealth expansion."
+    testimonial: "Our cloud transformation enabled us to handle 300% patient volume increases during critical periods without service degradation. The cost savings funded our telehealth expansion.",
+    icon: <Cloud size={16} />
   },
   {
     id: "retail-chatbot",
@@ -435,20 +475,14 @@ const CASE_STUDIES = [
       "Unified customer journey"
     ],
     technologies: ["Dialogflow", "Node.js", "React Native", "AWS Lambda", "Redis"],
-    testimonial: "Our AI assistant now handles 15,000+ daily conversations with higher satisfaction than human agents. It's transformed how we engage customers across all touchpoints."
+    testimonial: "Our AI assistant now handles 15,000+ daily conversations with higher satisfaction than human agents. It's transformed how we engage customers across all touchpoints.",
+    icon: <Bot size={16} />
   }
 ];
 
 // Consultation times for scheduling
 const CONSULTATION_TIMES = [
   "9:00 AM", "10:00 AM", "11:00 AM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"
-];
-
-/* ---------- HOT 2025 / 26 SERVICES (only inside AI) ---------- */
-const HOT_SERVICES = [
-  "Quantum-Safe Crypto Stack","Edge-AI for IoT","Synthetic Data Generator",
-  "Voice-Cloning Defense","Serverless LLM Runtime","Green Cloud Optimizer",
-  "Real-time Fraud Graph","Privacy-Preserving Analytics","Autonomous Supply-Chain"
 ];
 
 type Solution = {
@@ -460,6 +494,9 @@ type Solution = {
   deliverables: string[];
   benefits: string[];
   isHot?: boolean;
+  duration: string;
+  price: string;
+  icon: React.ReactNode;
 };
 
 /* ----------  THEME CONSTANTS (from dashboard)  ---------- */
@@ -512,61 +549,60 @@ function SolutionsAgent({ solutions }: { solutions: any[] }) {
     if (status === 100 || json.requiresContact) setRequiresContact(true);
   };
 
-const book = async (e: React.FormEvent<HTMLFormElement>) => {
-  e.preventDefault();
-  const fd = new FormData(e.currentTarget);
-  const name = fd.get('name') as string;
-  const email = fd.get('email') as string;
-  const date = fd.get('date') as string;
-  const time = fd.get('time') as string;
-  
-  setBooking(true);
-  const { json } = await callAgent('book', { name, email, date, time, threadId });
-  setBooking(false);
-  
-  if (json?.ok) {
-    // build ICS string
-    const icsContent = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//MutSyncHub//Consultation//EN',
-      'CALSCALE:GREGORIAN',
-      'METHOD:PUBLISH',
-      'BEGIN:VEVENT',
-      `UID:mut-${Date.now()}@mutsynchub.com`,
-      `DTSTART:${date}T${time.replace(':', '')}00`,
-      `DTEND:${date}T${String(Number(time.split(':')[0]) + 1).padStart(2, '0')}${time.split(':')[1]}00`,
-      'SUMMARY:MutSyncHub Consultation',
-      'DESCRIPTION:AI-agent booked consultation slot',
-      'STATUS:CONFIRMED',
-      'TRANSP:OPAQUE',
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ].join('\r\n');
+  const book = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const name = fd.get('name') as string;
+    const email = fd.get('email') as string;
+    const date = fd.get('date') as string;
+    const time = fd.get('time') as string;
     
-    const mailVars = {
-      name,
-      email,
-      consultation_date: date,
-      consultation_time: `${time} (East-Africa time)`, // ← human friendly
-      services: 'AI-Consulting',
-      company: 'N/A',
-      phone: 'N/A',
-      message: 'AI-agent booked slot',
-      ics_file: encodeURIComponent(icsContent), // ← filled
-      ics_filename: 'MutSyncHub-consultation.ics',
-      now_year: new Date().getFullYear(),
-    };
+    setBooking(true);
+    const { json } = await callAgent('book', { name, email, date, time, threadId });
+    setBooking(false);
     
-    const res = await sendConsultationEmail(mailVars);
-    if (res.status !== 200) console.warn('EmailJS failed:', res.text);
-    
-    setMessages((m) => [...m, { role: 'assistant', content: `✅ Calendar invite sent to ${email}. See you soon!` }]);
-  }
-};
+    if (json?.ok) {
+      const icsContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//MutSyncHub//Consultation//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+        'BEGIN:VEVENT',
+        `UID:mut-${Date.now()}@mutsynchub.com`,
+        `DTSTART:${date}T${time.replace(':', '')}00`,
+        `DTEND:${date}T${String(Number(time.split(':')[0]) + 1).padStart(2, '0')}${time.split(':')[1]}00`,
+        'SUMMARY:MutSyncHub Consultation',
+        'DESCRIPTION:AI-agent booked consultation slot',
+        'STATUS:CONFIRMED',
+        'TRANSP:OPAQUE',
+        'END:VEVENT',
+        'END:VCALENDAR',
+      ].join('\r\n');
+      
+      const mailVars = {
+        name,
+        email,
+        consultation_date: date,
+        consultation_time: `${time} (East-Africa time)`,
+        services: 'AI-Consulting',
+        company: 'N/A',
+        phone: 'N/A',
+        message: 'AI-agent booked slot',
+        ics_file: encodeURIComponent(icsContent),
+        ics_filename: 'MutSyncHub-consultation.ics',
+        now_year: new Date().getFullYear(),
+      };
+      
+      const res = await sendConsultationEmail(mailVars);
+      if (res.status !== 200) console.warn('EmailJS failed:', res.text);
+      
+      setMessages((m) => [...m, { role: 'assistant', content: `✅ Calendar invite sent to ${email}. See you soon!` }]);
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-3 text-sm">
+    <div className="flex flex-col gap-3 text-sm max-w-2xl mx-auto">
       <div className="h-64 overflow-y-auto rounded-xl border border-gray-300 bg-[#F5F5F0] p-3 flex flex-col gap-2">
         {messages.length === 0 && <p className="text-gray-500">👋 Hi! Ask me anything or pick a solution card below.</p>}
         {messages.map((m, i) => (
@@ -613,16 +649,22 @@ export default function SolutionsPage() {
   const searchParams = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedSolution, setExpandedSolution] = useState<string | null>(null);
-  const [showAgent, setShowAgent] = useState(false);
-  const agentRef = useRef<HTMLDivElement>(null);
+  const [showAgentModal, setShowAgentModal] = useState(false);
+  const [selectedSolution, setSelectedSolution] = useState<Solution | null>(null);
 
-  const openAgent = () => {
-  setShowAgent(true);
-  setTimeout(() => {
-    agentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    document.querySelector<HTMLInputElement>('#ai-chat-input')?.focus();
-  }, 100);
-};
+  const openAgentModal = (solution?: Solution) => {
+    setSelectedSolution(solution || null);
+    setShowAgentModal(true);
+    setTimeout(() => {
+      document.querySelector<HTMLInputElement>('#ai-chat-input')?.focus();
+    }, 100);
+  };
+
+  const closeAgentModal = () => {
+    setShowAgentModal(false);
+    setSelectedSolution(null);
+  };
+
   const filtered = selectedCategory === 'all' ? SOLUTIONS : SOLUTIONS.filter((s) => s.category === selectedCategory);
 
   useEffect(() => {
@@ -650,15 +692,12 @@ export default function SolutionsPage() {
             placeholder="Search solutions..." 
             className="bg-[#2E7D7D]/20 border-[#2E7D7D] text-gray-100 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D7D] w-full max-w-xs md:max-w-sm"
           />
-          <Link
-            href="https://wa.me/254783423550?text=Hi%20MutSyncHub,%20I%20need%20enterprise%20solutions."
-            target="_blank"
-            rel="noopener noreferrer"
+          <Button 
+            onClick={() => openAgentModal()} 
+            className="bg-[#2E7D7D] text-white px-4 py-2 rounded-lg hover:bg-[#2E7D7D]/80 flex items-center gap-2"
           >
-            <Button className="bg-[#2E7D7D] text-white px-4 py-2 rounded-lg hover:bg-[#2E7D7D]/80">
-              Contact Sales
-            </Button>
-          </Link>
+            <HiOutlineChatBubbleLeftRight size={18} /> Talk to AI
+          </Button>
         </div>
       </header>
 
@@ -673,7 +712,11 @@ export default function SolutionsPage() {
             <Button className="bg-[#2E7D7D] text-white px-6 py-3 rounded-lg hover:bg-[#2E7D7D]/80 shadow-lg">
               <Link href="#solutions">Explore Solutions</Link>
             </Button>
-            <Button variant="outline" onClick={openAgent} className="border-[#2E7D7D] text-[#2E7D7D] hover:bg-[#2E7D7D]/20 px-6 py-3 rounded-lg flex items-center gap-2">
+            <Button 
+              onClick={() => openAgentModal()} 
+              variant="outline" 
+              className="border-[#2E7D7D] text-[#2E7D7D] hover:bg-[#2E7D7D]/20 px-6 py-3 rounded-lg flex items-center gap-2"
+            >
               <HiOutlineChatBubbleLeftRight size={20} /> Talk to AI Consultant
             </Button>
           </div>
@@ -689,10 +732,14 @@ export default function SolutionsPage() {
                 key={cat.id}
                 variant={selectedCategory === cat.id ? 'default' : 'outline'}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`rounded-full px-3 py-1.5 text-xs h-7 ${selectedCategory === cat.id ? 'bg-[#2E7D7D] text-white' : 'border-[#2E7D7D]/40 text-gray-300 hover:bg-[#2E7D7D]/20'}`}
+                className={`rounded-full px-4 py-2 text-sm h-8 flex items-center gap-2 ${
+                  selectedCategory === cat.id 
+                    ? 'bg-[#2E7D7D] text-white' 
+                    : 'border-[#2E7D7D]/40 text-gray-300 hover:bg-[#2E7D7D]/20'
+                }`}
               >
-                <span className="text-xs">{cat.icon}</span>
-                <span className="text-xs ml-1">{cat.name}</span>
+                <span className={cat.color}>{cat.icon}</span>
+                <span>{cat.name}</span>
               </Button>
             ))}
           </div>
@@ -702,86 +749,115 @@ export default function SolutionsPage() {
       {/*  ----  SOLUTIONS GRID  ----  */}
       <section id="solutions" className="py-16 bg-[#1E2A44]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-full">
-            {/* LEFT — Enterprise Cards */}
-            <div>
-              <h2 className="text-3xl font-bold text-gray-100 mb-4">{selectedCategory === 'all' ? 'Our Solutions' : SERVICE_CATEGORIES.find((c) => c.id === selectedCategory)?.name}</h2>
-              <p className="text-gray-300 mb-8">Pick what you need — or let the AI suggest what you don’t know you need yet.</p>
-              <div className="space-y-6">
-                {filtered.map((sol) => (
-                  <Card key={sol.id} className="bg-[#1E2A44]/30 border border-[#2E7D7D]/30 shadow-md hover:shadow-xl transition-shadow rounded-xl">
-                    <CardHeader className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-xl text-gray-100">{sol.title}</CardTitle>
-                        <p className="text-sm text-gray-300 mt-1">{sol.description}</p>
+          <div className="max-w-full">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-gray-100 mb-4">
+                {selectedCategory === 'all' ? 'All Enterprise Solutions' : SERVICE_CATEGORIES.find((c) => c.id === selectedCategory)?.name}
+              </h2>
+              <p className="text-gray-300 max-w-2xl mx-auto">Click any solution to explore details or talk to our AI consultant for personalized recommendations.</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              {filtered.map((sol) => (
+                <motion.div
+                  key={sol.id}
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Card 
+                    className={`bg-[#1E2A44]/30 border border-[#2E7D7D]/30 shadow-md hover:shadow-xl transition-all duration-300 rounded-xl overflow-hidden ${sol.isHot ? 'ring-1 ring-[#2E7D7D]/50' : ''} cursor-pointer`}
+                    onClick={() => setExpandedSolution(expandedSolution === sol.id ? null : sol.id)}
+                  >
+                    <CardHeader className="flex items-start justify-between pb-3">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="text-[#2E7D7D] mt-1">{sol.icon}</div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <CardTitle className="text-xl text-gray-100">{sol.title}</CardTitle>
+                            {sol.isHot && <span className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs px-2 py-1 rounded-full font-semibold">HOT</span>}
+                          </div>
+                          <p className="text-sm text-gray-300 mt-1">{sol.description}</p>
+                        </div>
                       </div>
-                      {sol.isHot && <span className="bg-[#2E7D7D] text-white text-xs px-2 py-1 rounded-full">HOT</span>}
                     </CardHeader>
+                    
                     <CardContent>
-                      <ul className="text-sm text-gray-300 space-y-1 mb-4">
-                        {sol.services.slice(0, 3).map((s) => (
-                          <li key={s} className="flex items-center gap-2">
-                            <span className="text-[#2E7D7D]">✓</span> {s}
-                          </li>
-                        ))}
-                      </ul>
-                      <Button
-                        onClick={() => {
-                          alert('AI consultant will help you refine this — click "Talk to AI Consultant"');
-                        }}
-                        className="w-full bg-[#2E7D7D] text-white hover:bg-[#2E7D7D]/80 rounded-lg"
-                      >
-                        Request This Solution
-                      </Button>
+                      <div className="flex items-center gap-4 text-xs text-gray-400 mb-4">
+                        <div className="flex items-center gap-1">
+                          <Clock size={12} />
+                          <span>{sol.duration}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <DollarSign size={12} />
+                          <span>{sol.price}</span>
+                        </div>
+                      </div>
+                      
+                      <AnimatePresence>
+                        {expandedSolution === sol.id && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="border-t border-gray-600 pt-4 mt-2"
+                          >
+                            <div className="mb-4">
+                              <h4 className="text-sm font-semibold text-gray-200 mb-2 flex items-center gap-1">
+                                <Check size={14} className="text-[#2E7D7D]" /> Key Services
+                              </h4>
+                              <ul className="text-xs text-gray-300 space-y-1 ml-4">
+                                {sol.services.slice(0, 4).map((s) => (
+                                  <li key={s} className="flex items-center gap-2">
+                                    <span className="text-[#2E7D7D]">•</span> {s}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                            
+                            <div className="mb-4">
+                              <h4 className="text-sm font-semibold text-gray-200 mb-2 flex items-center gap-1">
+                                <Star size={14} className="text-[#2E7D7D]" /> Benefits
+                              </h4>
+                              <ul className="text-xs text-gray-300 space-y-1 ml-4">
+                                {sol.benefits.slice(0, 3).map((b) => (
+                                  <li key={b} className="flex items-center gap-2">
+                                    <span className="text-[#2E7D7D]">→</span> {b}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAgentModal(sol);
+                          }}
+                          className="flex-1 bg-[#2E7D7D] text-white hover:bg-[#2E7D7D]/80 rounded-lg text-sm py-2 flex items-center justify-center gap-2"
+                        >
+                          <HiOutlineChatBubbleLeftRight size={14} /> Get AI Quote
+                        </Button>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openAgentModal(sol);
+                          }}
+                          variant="outline"
+                          className="border-[#2E7D7D]/40 text-[#2E7D7D] hover:bg-[#2E7D7D]/20 rounded-lg text-sm py-2 px-3"
+                        >
+                          <ArrowUpRight size={14} />
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* RIGHT — AI Consultant */}
-            <div ref={agentRef} className="lg:sticky lg:top-24 self-start z-30 max-w-full lg:max-w-md">
-              <motion.div
-                initial={false}
-                animate={{ height: showAgent ? 'auto' : 64 }}
-                className="bg-[#1E2A44]/30 border border-[#2E7D7D]/30 rounded-xl overflow-hidden shadow-lg"
-              >
-                <div
-                  onClick={() => setShowAgent((s) => !s)}
-                  className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-[#2E7D7D]/10 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="text-[#2E7D7D] text-xl">🤖</span>
-                    <div>
-                      <p className="font-semibold text-gray-100">MutSyncHub Solutions Consultant</p>
-                      <p className="text-xs text-gray-400">Opt-in • Voice + Text</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-400">
-                    <span className="text-xs hidden sm:inline">{showAgent ? 'Minimize' : 'Expand'}</span>
-                    {showAgent ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                  </div>
-                </div>
-
-                <AnimatePresence>
-                  {showAgent && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className="px-4 pb-4"
-                    >
-                      <SolutionsAgent solutions={SOLUTIONS} />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-
-              <div className="mt-6 grid grid-cols-3 gap-4 text-center text-xs text-gray-400">
-                <div className="flex flex-col items-center gap-1"><HiOutlinePhone size={20} className="text-[#2E7D7D]" /><span>24/7 Support</span></div>
-                <div className="flex flex-col items-center gap-1"><HiOutlineEnvelope size={20} className="text-[#2E7D7D]" /><span>Email Summary</span></div>
-                <div className="flex flex-col items-center gap-1"><HiOutlineCalendar size={20} className="text-[#2E7D7D]" /><span>Book Slot</span></div>
-              </div>
+                </motion.div>
+              ))}
             </div>
           </div>
         </div>
@@ -810,8 +886,11 @@ export default function SolutionsPage() {
                 className="bg-[#1E2A44]/30 rounded-lg p-6 shadow-md hover:shadow-xl transition-shadow border border-[#2E7D7D]/30 hover:border-[#2E7D7D] cursor-pointer"
                 onClick={() => window.dispatchEvent(new CustomEvent('openCaseStudy', { detail: study }))}
               >
-                <h3 className="text-xl font-semibold text-gray-100 mb-2">{study.title}</h3>
-                <p className="text-[#2E7D7D] mb-4">{study.client}</p>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[#2E7D7D]">{study.icon}</span>
+                  <h3 className="text-xl font-semibold text-gray-100">{study.title}</h3>
+                </div>
+                <p className="text-[#2E7D7D] mb-4 font-medium">{study.client}</p>
                 <p className="text-gray-300 mb-4 line-clamp-3">{study.challenge}</p>
                 <div className="flex flex-wrap gap-2">
                   {study.results.slice(0, 3).map((result, i) => (
@@ -833,23 +912,64 @@ export default function SolutionsPage() {
       <section className="py-16 bg-[#1E2A44] border-t border-[#2E7D7D]/30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-gray-100 mb-4">Ready to Transform Your Business?</h2>
-          <p className="text-gray-300 mb-8 max-w-2xl mx-auto">Join leading enterprises leveraging MutSyncHub’s AI and cloud solutions for unparalleled growth.</p>
+          <p className="text-gray-300 mb-8 max-w-2xl mx-auto">Join leading enterprises leveraging MutSyncHub's AI and cloud solutions for unparalleled growth.</p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Button
-              onClick={() => {
-                setShowAgent(true);
-                setTimeout(() => document.querySelector<HTMLInputElement>('#ai-chat-input')?.focus(), 300);
-              }}
+              onClick={() => openAgentModal()}
               className="bg-[#2E7D7D] text-white px-8 py-3 rounded-lg hover:bg-[#2E7D7D]/80"
             >
               Schedule Free Consultation
             </Button>
             <Button variant="outline" className="border-[#2E7D7D] text-[#2E7D7D] hover:bg-[#2E7D7D]/20 px-8 py-3 rounded-lg" asChild>
-              <Link href="/solutions">Explore All Solutions</Link>
+              <Link href="#solutions">Explore All Solutions</Link>
             </Button>
           </div>
         </div>
       </section>
+
+      {/*  ----  AI CONSULTANT MODAL  ----  */}
+      <AnimatePresence>
+        {showAgentModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+            onClick={closeAgentModal}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-[#1E2A44] border border-[#2E7D7D]/30 rounded-xl shadow-2xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-[#2E7D7D]/30">
+                <div className="flex items-center gap-3">
+                  <span className="text-[#2E7D7D] text-xl">🤖</span>
+                  <div>
+                    <p className="font-semibold text-gray-100">MutSyncHub Solutions Consultant</p>
+                    <p className="text-xs text-gray-400">
+                      {selectedSolution ? `Discussing: ${selectedSolution.title}` : 'Ask me anything about our solutions'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={closeAgentModal}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X size={20} />
+                </Button>
+              </div>
+              <div className="p-4 overflow-y-auto max-h-[calc(90vh-80px)]">
+                <SolutionsAgent solutions={SOLUTIONS} />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
