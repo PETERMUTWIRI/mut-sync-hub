@@ -4,34 +4,29 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronDown, Menu, X, User, UserPlus, Briefcase, BookOpen, Headset, Server, LogIn, UserCheck } from 'lucide-react';
+import { 
+  ChevronDown, 
+  Menu, 
+  X, 
+  Briefcase, 
+  BookOpen, 
+  Headset, 
+  Server, 
+  LogIn, 
+  UserCheck,
+  LayoutGrid,
+  Cpu,
+  Cloud,
+  Database,
+  Bot,
+  Globe,
+  Code2
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useQuery } from '@tanstack/react-query';
 
 const Navbar: React.FC = () => {
   const [open, setOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-
-  // Fetch role with 5-minute cache (no auth pages)
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ['org-profile'],
-    queryFn: async () => {
-      const res = await fetch('/api/org-profile', { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to fetch profile');
-      return res.json();
-    },
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    retry: 1,
-    enabled: typeof window !== 'undefined'
-  });
-
-  const role = profile?.role?.toLowerCase();
-  const isSuperAdmin = role === 'super_admin';
-
-  // Dashboard link logic
-  const dashboardLink = isSuperAdmin
-    ? { href: '/admin-dashboard', label: 'Mission Control', color: 'text-red-400 hover:text-red-300' }
-    : { href: '/user-dashboard-main', label: 'Analytics Engine', color: 'text-cyan-400 hover:text-cyan-300' };
 
   // Desktop dropdown component
   const NavDropdown = ({ title, icon, links }: { title: string, icon: React.ReactNode, links: { label: string; href: string }[] }) => (
@@ -106,18 +101,6 @@ const Navbar: React.FC = () => {
           </button>
         </div>
 
-        {/* Minimal role indicator */}
-        {!isLoading && role && (
-          <div className="px-4 py-2 mb-4 rounded-lg bg-[#2E7D7D]/10 border border-[#2E7D7D]/30">
-            <span className={cn(
-              "text-xs font-bold uppercase tracking-wide",
-              isSuperAdmin ? 'text-red-400' : 'text-cyan-400'
-            )}>
-              {isSuperAdmin ? 'Owner' : role}
-            </span>
-          </div>
-        )}
-
         <nav className="flex-1 space-y-1 overflow-y-auto">
           <Link href="/" onClick={() => setOpen(false)} className="block px-4 py-3 text-white hover:text-cyan-400">Home</Link>
           
@@ -156,22 +139,15 @@ const Navbar: React.FC = () => {
             ]}
           />
 
-          {/* Dashboard link */}
-          {!isLoading && role && (
-            <Link
-              href={dashboardLink.href}
-              onClick={() => setOpen(false)}
-              className={cn(
-                "block px-4 py-3 text-sm font-semibold",
-                dashboardLink.color
-              )}
-            >
-              <span className="flex items-center gap-2">
-                <Server size={16} />
-                {dashboardLink.label}
-              </span>
-            </Link>
-          )}
+          {/* Analytics Engine always visible */}
+          <Link
+            href="/dashboard"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-3 text-sm font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-2"
+          >
+            <Server size={16} />
+            Analytics Engine
+          </Link>
         </nav>
 
         {/* Auth buttons with icons */}
@@ -240,53 +216,20 @@ const Navbar: React.FC = () => {
               ]}
             />
 
-            {/* Dashboard based on role */}
-            {!isLoading && role && (
-              <Link
-                href={dashboardLink.href}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/5",
-                  dashboardLink.color
-                )}
-              >
-                <Server size={16} />
-                {dashboardLink.label}
-              </Link>
-            )}
-
-            {/* Loading state */}
-            {isLoading && (
-              <div className="w-24 h-8 bg-gray-700 rounded animate-pulse"></div>
-            )}
+            {/* Analytics Engine always visible */}
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-cyan-400 hover:text-cyan-300 hover:bg-white/5 transition-all duration-200"
+            >
+              <Server size={16} />
+              Analytics Engine
+            </Link>
           </nav>
 
           {/* Right side - Auth + Mobile */}
           <div className="flex items-center gap-3">
-            {/* Desktop Auth Icons + Minimal Role */}
+            {/* Desktop Auth Icons */}
             <div className="hidden lg:flex items-center gap-2">
-              {/* Minimal role badge */}
-              {!isLoading && role && (
-                <span className={cn(
-                  "text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wide border",
-                  isSuperAdmin 
-                    ? 'bg-red-500/20 text-red-400 border-red-500/30' 
-                    : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                )}>
-                  {isSuperAdmin ? 'Owner' : role}
-                </span>
-              )}
-
-              {/* Admin Panel for super admin */}
-              {isSuperAdmin && (
-                <Link
-                  href="/admin-dashboard"
-                  className="text-xs bg-red-500 text-white px-2 py-1 rounded font-bold hover:bg-red-400 transition-all duration-200"
-                >
-                  Admin
-                </Link>
-              )}
-
-              {/* Auth icons */}
               <Link
                 href="/sign-in"
                 className="p-2 rounded-lg text-white hover:text-cyan-400 hover:bg-white/5 transition-all duration-200"
