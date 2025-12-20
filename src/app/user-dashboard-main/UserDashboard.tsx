@@ -167,26 +167,7 @@ export default function UserDashboard() {
   /*  ----  RENDER  ----  */
   return (
     <div className="bg-[#1E2A44] text-gray-100 font-inter w-full min-h-screen">
-      <header className="flex items-center justify-between px-8 py-4 bg-[#1E2A44] border-b border-[#2E7D7D]/30 shadow-lg w-full">
-        <div className="flex items-center gap-4">
-          <Input type="text" placeholder="Ask AI or search..." className="bg-[#2E7D7D]/20 border-[#2E7D7D] text-gray-100 px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E7D7D] w-64" />
-          <Select value={layoutMode} onValueChange={(value) => setLayoutMode(value as any)}>
-            <SelectTrigger className="bg-[#2E7D7D]/20 border-[#2E7D7D] text-gray-100">
-              <SelectValue placeholder="Layout Mode" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="beginner">Beginner</SelectItem>
-              <SelectItem value="power">Power User</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center gap-6">
-          <HiBell size={24} className="text-gray-300 hover:text-white" />
-          <div className="w-8 h-8 rounded-full bg-[#2E7D7D] flex items-center justify-center text-white font-bold">
-            {orgProfile?.firstName?.[0] || orgProfile?.email?.[0] || 'U'}
-          </div>
-        </div>
-      </header>
+      
 
       {showPlans && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
