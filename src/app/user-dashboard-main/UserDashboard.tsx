@@ -340,13 +340,6 @@ export default function UserDashboard() {
 
       <AIChatButton />
 
-      <style jsx global>{`
-        #drop-zone.drop-active {
-          border-color: #2e7d7d;
-          background-color: rgba(46, 125, 125, 0.15);
-          box-shadow: 0 0 0 2px rgba(46, 125, 125, 0.5);
-        }
-      `}</style>
     </div>
   );
 }

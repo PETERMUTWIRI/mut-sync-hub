@@ -7,7 +7,7 @@ import { useUser } from '@stackframe/stack';
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { Toaster } from 'react-hot-toast';
-
+import { useOrgProfile } from '@/hooks/useOrgProfile';
 // ✅ FIXED: Add .then() to extract default export
 const DashboardSidebar = dynamic(() => 
   import('@/components/user/DashboardSidebar').then((mod) => mod.default)
@@ -16,7 +16,8 @@ const DashboardSidebar = dynamic(() =>
 export default function UserDashboardLayout({ children }: { children: React.ReactNode }) {
   const user = useUser({ or: 'redirect' });
   const [queryClient] = useState(() => new QueryClient());
-
+    const { data: orgProfile, error: profileError, isLoading } = useOrgProfile();
+  
   const handleLogout = async () => {
     await user.signOut({
       redirectUrl: window.location.origin + '/', // Redirect to home
@@ -28,7 +29,7 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
       <div className="min-h-screen w-full bg-[#0B1020] text-white font-inter">
         {/* TOP NAVBAR */}
         <DashboardSidebar
-          displayName={user.displayName || (user as any).email || 'User'}
+          displayName={orgProfile?.firstName?.[0] || orgProfile?.email?.[0] || 'U'}
           handleLogout={handleLogout}
         />
 
