@@ -29,7 +29,7 @@ export default function UserDashboardLayout({ children }: { children: React.Reac
       <div className="min-h-screen w-full bg-[#0B1020] text-white font-inter">
         {/* TOP NAVBAR */}
         <DashboardSidebar
-          displayName={orgProfile?.firstName?.[0] || orgProfile?.email?.[0] || 'U'}
+          displayName={orgProfile?.firstName?.[0]  || 'U'}
           handleLogout={handleLogout}
         />
 

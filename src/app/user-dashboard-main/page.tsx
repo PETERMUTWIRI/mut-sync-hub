@@ -411,11 +411,7 @@ export default function UserDashboard() {
       <AIChatButton />
 
       {/* -------------- GLOBAL STYLES -------------- */}
-        <style jsx global>{`
-          body {
-            background: #0b1020;
-          }
-        `}</style>
+        
       </div>
     );
   }

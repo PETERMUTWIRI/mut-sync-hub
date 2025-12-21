@@ -213,6 +213,7 @@ model AuditLog {
 model SupportTicket {
   id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user_email   String
+  ticket_number String   @unique
   org_id       String?        @db.Uuid
   title        String
   description  String
