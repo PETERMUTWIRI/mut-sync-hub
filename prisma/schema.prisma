@@ -56,6 +56,7 @@ model Organization {
   settings               Json?
   status                 OrgStatus               @default(ACTIVE)
   planId                 String?
+  trial_end_date         DateTime?               @db.Timestamptz(6)
   reports                AnalyticsReport[]
   analyticsSchedules     AnalyticsSchedule[]
   apiKeys                ApiKey[]
