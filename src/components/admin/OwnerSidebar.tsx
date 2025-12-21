@@ -6,9 +6,13 @@ import { usePathname } from 'next/navigation';
 import { 
   HiHome, HiUserGroup, HiServer, HiCurrencyDollar, 
   HiWifi, HiClipboard, HiShieldCheck, HiCog,
-  HiInbox, HiBell
+  HiInbox, HiBell, HiArrowRightOnRectangle
 } from 'react-icons/hi2';
 import { cn } from '@/lib/utils';
+
+interface OwnerSidebarProps {
+  handleLogout?: () => Promise<void>;
+}
 
 const menuItems = [
   { href: '/admin-dashboard', icon: HiHome, label: 'Mission Control' },
@@ -23,11 +27,11 @@ const menuItems = [
   { href: '/admin-dashboard/settings', icon: HiCog, label: 'Owner Settings' },
 ];
 
-export default function OwnerSidebar() {
+export default function OwnerSidebar({ handleLogout }: OwnerSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-72 bg-cockpit-panel/50 backdrop-blur border-r border-cyan-500/10 p-6 h-screen sticky top-0">
+    <aside className="w-72 bg-cockpit-panel/50 backdrop-blur border-r border-cyan-500/10 p-6 h-screen sticky top-0 flex flex-col">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-cyan-400 flex items-center gap-2">
           <HiCog className="animate-spin-slow" />
@@ -36,7 +40,7 @@ export default function OwnerSidebar() {
         <p className="text-gray-500 text-sm mt-2">Platform-wide control</p>
       </div>
       
-      <nav className="space-y-2">
+      <nav className="space-y-2 flex-1">
         {menuItems.map(({ href, icon: Icon, label }) => {
           const isActive = pathname === href;
           return (
@@ -56,6 +60,18 @@ export default function OwnerSidebar() {
           );
         })}
       </nav>
+
+      {/* Logout Button */}
+      {handleLogout && (
+        <button
+          onClick={handleLogout}
+          className="mt-6 flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-all border border-red-500/20"
+          title="Logout"
+        >
+          <HiArrowRightOnRectangle className="text-xl rotate-180" />
+          <span className="font-medium">Logout</span>
+        </button>
+      )}
     </aside>
   );
 }
