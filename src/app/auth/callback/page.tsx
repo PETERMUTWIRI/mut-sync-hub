@@ -1,4 +1,4 @@
-// src/app/dashboard/page.tsx (Server Component)
+// src/app/auth/callback/page.tsx
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { stackServerApp } from '@/lib/stack';
@@ -18,16 +18,15 @@ async function getDefaultPlanWithTrial() {
   };
 }
 
-export default async function DashboardEntry() {
+export default async function AuthCallback() {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get('stack-session-token')?.value;
   
   if (!sessionToken) {
-    redirect('/sign-in?redirectTo=/dashboard');
+    redirect('/sign-in');
   }
 
   try {
-    // Get user from Stack Auth
     const user = await stackServerApp.getUser({ 
       or: 'throw',
       tokenStore: 'nextjs-cookie'
@@ -35,15 +34,23 @@ export default async function DashboardEntry() {
     
     if (!user) throw new Error('Invalid session');
 
-    // Fetch or CREATE userProfile (source of truth)
+    // ✅ FIXED: Include organization in query
     let profile = await prisma.userProfile.findUnique({
       where: { userId: user.id },
-      include: { organization: true },
+      include: { 
+        organization: {
+          select: {
+            id: true,
+            planId: true,
+            trial_end_date: true // ✅ Explicitly select this field
+          }
+        }
+      },
     });
 
     // Create profile if doesn't exist
     if (!profile) {
-      const { id: defaultPlanId, trial_days } = await getDefaultPlanWithTrial();
+      const { id: planId, trial_days } = await getDefaultPlanWithTrial();
       const trialEndDate = trial_days > 0 
         ? new Date(Date.now() + trial_days * 24 * 60 * 60 * 1000) 
         : null;
@@ -53,12 +60,11 @@ export default async function DashboardEntry() {
           id: uuidv4(),
           name: `Org-${user.id.slice(0, 8)}`,
           subdomain: `org-${user.id.slice(0, 8)}-${Date.now()}`,
-          planId: defaultPlanId,
-          trial_end_date: trialEndDate,
+          planId,
+          trial_end_date: trialEndDate, // ✅ Use exact field name
         },
       });
 
-      // Auto-promote owner
       const isOwner = user.primaryEmail === process.env.OWNER_EMAIL;
       
       profile = await prisma.userProfile.create({
@@ -77,40 +83,76 @@ export default async function DashboardEntry() {
           mfaEnabled: false,
           failedLoginAttempts: 0,
         },
-        include: { organization: true },
+        include: {
+          organization: {
+            select: {
+              id: true,
+              planId: true,
+              trial_end_date: true
+            }
+          }
+        },
       });
     }
 
-    // Check trial expiration
+    // ✅ FIXED: Handle trial expiration
     const now = new Date();
-    if (!profile.role.includes('ADMIN') && profile.organization.trial_end_date && profile.organization.trial_end_date < now) {
+    if (!profile.role.includes('ADMIN') && 
+        profile.organization?.trial_end_date && 
+        profile.organization.trial_end_date < now) {
       const { id: freePlanId } = await getDefaultPlanWithTrial();
       
       await prisma.organization.update({
         where: { id: profile.organization.id },
         data: { 
           planId: freePlanId,
-          trial_end_date: null
+          trial_end_date: null // ✅ Use exact field name
         }
       });
       
       // Reload profile
       profile = await prisma.userProfile.findUnique({
         where: { userId: user.id },
-        include: { organization: true },
+        include: {
+          organization: {
+            select: {
+              id: true,
+              planId: true,
+              trial_end_date: true
+            }
+          }
+        },
       });
     }
 
-    // Update owner role if needed
+    // ✅ FIXED: Update owner role
     if (user.primaryEmail === process.env.OWNER_EMAIL && profile.role !== 'SUPER_ADMIN') {
       profile = await prisma.userProfile.update({
         where: { id: profile.id },
         data: { role: 'SUPER_ADMIN' },
-        include: { organization: true },
+        include: {
+          organization: {
+            select: {
+              id: true,
+              planId: true,
+              trial_end_date: true
+            }
+          }
+        },
       });
     }
 
-    // CRITICAL: Role-based redirect with absolute paths
+    // ✅ FIXED: Null check for profile
+    if (!profile) {
+      throw new Error('Profile creation failed');
+    }
+
+    // ✅ FIXED: Null check for organization
+    if (!profile.organization) {
+      throw new Error('Organization not found');
+    }
+
+    // Role-based redirect
     const role = profile.role.toLowerCase();
     if (role === 'super_admin') {
       redirect('/admin-dashboard');
@@ -119,9 +161,8 @@ export default async function DashboardEntry() {
     }
     
   } catch (error) {
-    console.error('Dashboard entry error:', error);
-    // 🚨 Clear any stale cookies on error
+    console.error('Auth callback error:', error);
     cookieStore.delete('stack-session-token');
-    redirect('/sign-in?redirectTo=/dashboard');
+    redirect('/sign-in?error=authentication_failed');
   }
 }

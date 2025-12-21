@@ -1,12 +1,15 @@
 // src/app/sign-up/page.tsx
-"use client";
+'use client';
+
 import { CredentialSignUp, OAuthButton } from '@stackframe/stack';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PostLoginRedirect } from '@/components/PostLoginRedirect';
 import { useUser } from '@stackframe/stack';
 import { TooltipProvider } from '@radix-ui/react-tooltip';
+import { AUTH_CONFIG } from '@/lib/auth/stack-config';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -17,46 +20,58 @@ export default function SignUpPage() {
     setIsClient(true);
   }, []);
 
-  if (!isClient) {
-    return null; // Render nothing on server to avoid hydration mismatch
-  }
-
-  if (user) {
-    return <PostLoginRedirect />;
+  // ✅ FIXED: Use router.push instead of PostLoginRedirect
+  if (isClient && user) {
+    router.push(AUTH_CONFIG.POST_LOGIN_URL);
+    return null;
   }
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen flex items-center justify-center bg-[#F7FAFC] dark:bg-[#1E2A44]">
-        <Card className="w-full max-w-md border-[#E2E8F0] dark:border-[#2E7D7D]/20 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-[#1E2A44] dark:text-[#E2E8F0] text-center">
-              Sign Up for MutSyncHub
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <OAuthButton provider="google" type="sign-up" />
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-[#E2E8F0] dark:border-[#2E7D7D]/20" />
+      <div className="min-h-screen flex items-center justify-center bg-cockpit-bg">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: 'easeOut' }}
+          className="w-full max-w-md"
+        >
+          <Card className="bg-white/5 backdrop-blur-lg border border-gray-700/20 shadow-2xl">
+            <CardHeader>
+              <CardTitle className="text-3xl font-bold text-cyan-400 text-center font-sans">
+                Create Account
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* ✅ Google SSO */}
+              <OAuthButton 
+                provider="google" 
+                type="sign-up"
+              />
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-gray-600/20" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-cockpit-bg px-2 text-gray-500">Or</span>
+                </div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-[#F7FAFC] dark:bg-[#1E2A44] px-2 text-gray-500">
-                  Or continue with email
-                </span>
+
+              {/* ✅ Email Sign Up */}
+              <CredentialSignUp noPasswordRepeat />
+
+              {/* ✅ Sign In Link */}
+              <div className="text-center pt-4 border-t border-gray-700/20">
+                <Link 
+                  href="/sign-in"
+                  className="text-sm text-gray-400 hover:text-cyan-400"
+                >
+                  Already have an account? <span className="font-semibold">Sign In</span>
+                </Link>
               </div>
-            </div>
-            <CredentialSignUp noPasswordRepeat />
-            <div className="text-center">
-              <span
-                className="underline text-blue-600 cursor-pointer"
-                onClick={() => router.replace('/sign-in')}
-              >
-                Go to Sign In
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </TooltipProvider>
   );

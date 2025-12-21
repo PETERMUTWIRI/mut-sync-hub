@@ -71,7 +71,7 @@ model Organization {
   subscription           Subscription?
   supportTickets         SupportTicket[]
   userProfiles           UserProfile[]
-
+  @map("trial_end_date")
   @@schema("public")
 }
 

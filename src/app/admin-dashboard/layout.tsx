@@ -5,24 +5,18 @@ import React from 'react';
 import OwnerSidebar from '@/components/admin/OwnerSidebar';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useUser } from '@stackframe/stack'; // ✅ Added
+import { useEnterpriseLogout } from '@/lib/auth/use-enterprise-logout';
 
 const queryClient = new QueryClient();
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
-  const user = useUser({ or: 'redirect' });
-
-  const handleLogout = async () => {
-    await user.signOut({
-      redirectUrl: window.location.origin + '/', // Redirect to home
-    });
-  };
+  const enterpriseLogout = useEnterpriseLogout();
 
   return (
     <ProtectedRoute requiredRole="super_admin">
       <QueryClientProvider client={queryClient}>
         <div className="flex min-h-screen w-full bg-cockpit-bg">
-          <OwnerSidebar handleLogout={handleLogout} /> {/* ✅ Added prop */}
+          <OwnerSidebar handleLogout={enterpriseLogout} />
           <main className="flex-1 p-8 overflow-y-auto">
             {children}
           </main>

@@ -16,3 +16,39 @@
   justify-content: space-between;
   min-height: 200px; /* 2 rows * rowHeight (100) */
 }
+/* src/app/globals.css */
+
+/* Stack Auth self-hosted theme override */
+.stack-auth-container {
+  background: rgba(255, 255, 255, 0.05) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  padding: 2rem !important;
+}
+
+.stack-auth-button {
+  background: linear-gradient(135deg, #00d4ff 0%, #9b59b6 100%) !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+}
+
+.stack-auth-button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 4px 15px rgba(0, 212, 255, 0.4) !important;
+}
+
+.stack-auth-input {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  color: #ffffff !important;
+}
+
+.stack-auth-input:focus {
+  border-color: #00d4ff !important;
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2) !important;
+}
