@@ -68,8 +68,9 @@ model Organization {
   payments               Payment[]
   paymentReconciliations PaymentReconciliation[]
   subscription           Subscription?
+  supportTickets         SupportTicket[]
   userProfiles           UserProfile[]
-  supportTickets         SupportTicket[] 
+
   @@schema("public")
 }
 
@@ -211,24 +212,25 @@ model AuditLog {
 }
 
 model SupportTicket {
-  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  user_email   String
-  ticket_number String   @unique
-  org_id       String?        @db.Uuid
-  title        String
-  description  String
-  priority     Priority       @default(MEDIUM)
-  status       TicketStatus   @default(OPEN)
-  assignee     String?
-  created_at   DateTime?      @default(now()) @db.Timestamptz(6)
-  updated_at   DateTime?      @default(now()) @db.Timestamptz(6)
-  SupportReply SupportReply[]
-  organization Organization?  @relation(fields: [org_id], references: [id]) // ← ADD THIS LINE
+  id            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_email    String
+  org_id        String?
+  title         String
+  description   String
+  priority      Priority       @default(MEDIUM)
+  status        TicketStatus   @default(OPEN)
+  assignee      String?
+  created_at    DateTime?      @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime?      @default(now()) @db.Timestamptz(6)
+  ticket_number String         @unique @default("")
+  SupportReply  SupportReply[]
+  organization  Organization?  @relation(fields: [org_id], references: [id], onUpdate: NoAction)
 
   @@index([org_id])
   @@index([user_email, status])
   @@schema("public")
 }
+
 model DataSource {
   id           String           @id @default(uuid())
   name         String
@@ -378,7 +380,7 @@ model SupportReply {
   author_email  String
   body          String
   created_at    DateTime?     @default(now()) @db.Timestamptz(6)
-  read          Boolean       @default(false)  
+  read          Boolean       @default(false)
   SupportTicket SupportTicket @relation(fields: [ticket_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([ticket_id])
