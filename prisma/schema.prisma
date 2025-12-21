@@ -144,6 +144,9 @@ model Plan {
   price         Float
   currency      String         @default("USD")
   features      Json
+  createdAt     DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime       @default(now()) @db.Timestamptz(6)
+  trial_days    Int            @default(0)
   organizations Organization[]
 
   @@schema("public")

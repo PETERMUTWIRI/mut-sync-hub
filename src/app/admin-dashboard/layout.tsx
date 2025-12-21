@@ -10,7 +10,7 @@ const queryClient = new QueryClient();
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ProtectedRoute requiredRole="admin">
+    <ProtectedRoute requiredRole="super_admin"> {/* ✅ CHANGED: super_admin */}
       <QueryClientProvider client={queryClient}>
         <div className="flex min-h-screen w-full bg-cockpit-bg">
           <OwnerSidebar />
