@@ -8,11 +8,11 @@ import { toast, Toaster } from 'react-hot-toast';
 import { 
   LifeBuoy, MessageSquare, BookOpen, Users, Plus, Search, ChevronRight, 
   Mail, Phone, Wrench,Headset, CheckCircle2, XCircle, X, Clock, Shield, 
-  TrendingUp, Activity, Zap, Award, ArrowRight, AlertCircle, RefreshCw
+  TrendingUp, Activity, Zap, Award, ArrowRight, AlertCircle
 } from 'lucide-react';
 import { HiTicket, HiRefresh } from 'react-icons/hi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getOrgProfile } from '@/lib/org-profile-client'; // ✅ NEW IMPORT
+import { getOrgProfile } from '@/lib/org-profile-client'; // ✅ Client-side fetcher
 
 // ──────────────────────────────────────────────────────────────
 // TYPES & INTERFACES
@@ -381,11 +381,11 @@ export default function SupportPage() {
           <div className="bg-[#1E2A44]/30 border border-cyan-500/20 rounded-xl p-6">
             <h2 className="text-xl font-bold text-cyan-400 mb-4">Contact</h2>
             <div className="space-y-3">
-              <a href="mailto:support@mutsynhub.com" className="flex items-center gap-3 p-3 bg-[#1E2A44]/50 rounded-lg hover:bg-cyan-500/10 transition">
+              <a href="mailto:support@mutsynchub.com" className="flex items-center gap-3 p-3 bg-[#1E2A44]/50 rounded-lg hover:bg-cyan-500/10 transition">
                 <Mail className="text-cyan-400" /> 
                 <div>
                   <div className="text-white font-medium">Email</div>
-                  <div className="text-xs text-gray-400">support@mutsynhub.com</div>
+                  <div className="text-xs text-gray-400">support@mutsynchub.com</div>
                 </div>
               </a>
             </div>
