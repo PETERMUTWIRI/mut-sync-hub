@@ -72,6 +72,11 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Guard: profile should never be null after creation
+    if (!profile) {
+      return NextResponse.json({ error: 'Profile creation failed' }, { status: 500 });
+    }
+
     // Check if trial expired for non-owners
     const now = new Date();
     if (!profile.role.includes('ADMIN') && profile.organization.trial_end_date && profile.organization.trial_end_date < now) {
@@ -91,6 +96,11 @@ export async function GET(req: NextRequest) {
       });
     }
 
+    // Guard again after potential reload
+    if (!profile) {
+      return NextResponse.json({ error: 'Profile reload failed' }, { status: 500 });
+    }
+
     // Also update existing profile if owner logs in with old USER role
     if (user.primaryEmail === process.env.OWNER_EMAIL && profile.role !== 'SUPER_ADMIN') {
       profile = await prisma.userProfile.update({
@@ -100,8 +110,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const planId = profile.organization.planId;
-    const plan = await prisma.plan.findUnique({ where: { id: planId } });
+    const planId = profile.organization.planId ?? undefined; // Fix: undefined instead of null
+    const plan = planId ? await prisma.plan.findUnique({ where: { id: planId } }) : null;
 
     // Return role info for redirect decisions
     return NextResponse.json({
