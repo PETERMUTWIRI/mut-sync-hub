@@ -25,6 +25,7 @@ interface AuditLog {
 interface LogStreamProps {
   events: AuditLog[];
   className?: string;
+  isLive?: boolean;
 }
 
 const LOG_LEVELS = ['ALL', 'INFO', 'WARNING', 'ERROR', 'SECURITY', 'API'] as const;

@@ -7,6 +7,7 @@ import { Prisma } from '@prisma/client';
 import { stackServerApp } from '@/lib/stack';
 import { v4 as uuidv4 } from 'uuid';
 import { prisma } from '@/lib/prisma';
+import { broadcastToOwner } from '@/lib/admin-broadcast'; // ✅ Added
 
 // Helper to get default plan with trial info
 async function getDefaultPlanWithTrial() {
@@ -22,8 +23,12 @@ async function getDefaultPlanWithTrial() {
 }
 
 export async function GET(req: NextRequest) {
+  let userId: string | undefined;
+  let orgId: string | undefined;
+
   try {
     const user = await stackServerApp.getUser({ or: 'throw', tokenStore: 'nextjs-cookie' });
+    userId = user.id;
 
     let profile = await prisma.userProfile.findUnique({
       where: { userId: user.id },
@@ -33,8 +38,6 @@ export async function GET(req: NextRequest) {
     // If profile doesn't exist, create it (new user signup)
     if (!profile) {
       const { id: defaultPlanId, trial_days } = await getDefaultPlanWithTrial();
-      
-      // Calculate trial end date if trial_days > 0
       const trialEndDate = trial_days > 0 
         ? new Date(Date.now() + trial_days * 24 * 60 * 60 * 1000) 
         : null;
@@ -48,6 +51,7 @@ export async function GET(req: NextRequest) {
           trial_end_date: trialEndDate,
         },
       });
+      orgId = org.id;
 
       // CRITICAL: Auto-promote owner email to SUPER_ADMIN
       const isOwner = user.primaryEmail === process.env.OWNER_EMAIL;
@@ -70,6 +74,21 @@ export async function GET(req: NextRequest) {
         },
         include: { organization: true },
       });
+
+      // ✅ SRE: Log new profile creation
+      try {
+        await broadcastToOwner('org:profile:created', {
+          userId: user.id,
+          orgId: org.id,
+          email: user.primaryEmail,
+          planId: defaultPlanId,
+          trialEndDate,
+          role: isOwner ? 'SUPER_ADMIN' : 'USER',
+          isOwner
+        });
+      } catch (logError) {
+        console.error('[org-profile] SRE log failed:', logError);
+      }
     }
 
     // Guard: profile should never be null after creation
@@ -80,15 +99,32 @@ export async function GET(req: NextRequest) {
     // Check if trial expired for non-owners
     const now = new Date();
     if (!profile.role.includes('ADMIN') && profile.organization.trial_end_date && profile.organization.trial_end_date < now) {
+      const oldPlanId = profile.organization.planId;
+      const newPlan = await getDefaultPlanWithTrial();
+      
       // Trial expired - downgrade to free plan permanently
       await prisma.organization.update({
         where: { id: profile.organization.id },
         data: { 
-          planId: (await getDefaultPlanWithTrial()).id,
-          trial_end_date: null // Clear trial date after downgrade
+          planId: newPlan.id,
+          trial_end_date: null
         }
       });
       
+      // ✅ SRE: Log trial expiration
+      try {
+        await broadcastToOwner('org:profile:trial-expired', {
+          userId: user.id,
+          orgId: profile.organization.id,
+          email: user.primaryEmail,
+          oldPlanId,
+          newPlanId: newPlan.id,
+          trialEndDate: profile.organization.trial_end_date
+        });
+      } catch (logError) {
+        console.error('[org-profile] SRE log failed:', logError);
+      }
+
       // Reload profile after downgrade
       profile = await prisma.userProfile.findUnique({
         where: { userId: user.id },
@@ -103,15 +139,44 @@ export async function GET(req: NextRequest) {
 
     // Also update existing profile if owner logs in with old USER role
     if (user.primaryEmail === process.env.OWNER_EMAIL && profile.role !== 'SUPER_ADMIN') {
+      const oldRole = profile.role;
       profile = await prisma.userProfile.update({
         where: { id: profile.id },
         data: { role: 'SUPER_ADMIN' },
         include: { organization: true },
       });
+
+      // ✅ SRE: Log owner role upgrade
+      try {
+        await broadcastToOwner('org:profile:role-updated', {
+          userId: user.id,
+          orgId: profile.orgId,
+          email: user.primaryEmail,
+          oldRole,
+          newRole: 'SUPER_ADMIN',
+          reason: 'owner_login'
+        });
+      } catch (logError) {
+        console.error('[org-profile] SRE log failed:', logError);
+      }
     }
 
-    const planId = profile.organization.planId ?? undefined; // Fix: undefined instead of null
+    const planId = profile.organization.planId ?? undefined;
     const plan = planId ? await prisma.plan.findUnique({ where: { id: planId } }) : null;
+
+    // ✅ SRE: Log successful profile fetch
+    try {
+      await broadcastToOwner('org:profile:fetch-success', {
+        userId: user.id,
+        orgId: profile.orgId,
+        email: user.primaryEmail,
+        role: profile.role,
+        planId,
+        trialActive: profile.organization.trial_end_date && profile.organization.trial_end_date > new Date()
+      });
+    } catch (logError) {
+      console.error('[org-profile] SRE log failed:', logError);
+    }
 
     // Return role info for redirect decisions
     return NextResponse.json({
@@ -138,10 +203,22 @@ export async function GET(req: NextRequest) {
       },
       plan,
       flags: profile.featureFlags ?? {},
-      // Add redirect hint for frontend
       shouldRedirectAdmin: profile.role === 'SUPER_ADMIN'
     });
   } catch (e: any) {
+    // ✅ SRE: Log error
+    try {
+      await broadcastToOwner('org:profile:error', {
+        userId,
+        orgId,
+        error: e.message,
+        stack: e.stack,
+        timestamp: Date.now()
+      });
+    } catch (logError) {
+      console.error('[org-profile] SRE log failed:', logError);
+    }
+
     console.error('[org-profile]', e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

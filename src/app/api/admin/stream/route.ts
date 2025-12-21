@@ -7,11 +7,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verifySuperAdmin } from '@/lib/auth-super';
 import { redis } from '@/lib/redis';
 
-type UpstashXReadResponse = [[string, [string, Record<string, string>][]]] | null;
+// Helper to convert Redis flat array to object
+function convertRedisFieldsToObject(fields: any): Record<string, any> {
+  // Already an object? Return as-is
+  if (!Array.isArray(fields)) return fields;
+  
+  // Convert flat array [key1, val1, key2, val2] to object
+  const obj: Record<string, any> = {};
+  for (let i = 0; i < fields.length; i += 2) {
+    const key = fields[i];
+    const value = fields[i + 1];
+    if (key !== undefined) {
+      obj[key] = value;
+    }
+  }
+  return obj;
+}
+
+// Define Upstash response type (can be either format)
+type UpstashXReadResponse = [[string, [string, any][]]] | null;
 
 export async function GET(req: NextRequest) {
   try {
-    // Verify admin access first
     await verifySuperAdmin(req);
 
     const stream = new ReadableStream({
@@ -31,39 +48,61 @@ export async function GET(req: NextRequest) {
             ) as UpstashXReadResponse;
 
             // Process entries if they exist
-            if (response?.[0]) {
+            if (response?.[0] && Array.isArray(response[0])) {
               const [, entries] = response[0];
               
               for (const entry of entries) {
-                const [id, fields] = entry;
+                if (!Array.isArray(entry) || entry.length < 2) continue;
                 
-                // Skip if fields are malformed
+                const [id, rawFields] = entry;
+                
+                // Convert flat array to object if needed
+                const fields = convertRedisFieldsToObject(rawFields);
+                
+                // Skip if conversion failed or fields are malformed
                 if (!fields || typeof fields !== 'object') {
-                  console.warn(`[admin-stream] Skipping entry ${id}: fields is not an object`);
-                  lastId = id; // Still advance to avoid reprocessing
+                  console.warn(`[admin-stream] Skipping entry ${id}: invalid fields structure`);
+                  lastId = id;
                   continue;
                 }
 
-                // Safely parse event data with fallback
-                let parsedData: unknown = null;
-                try {
-                  const rawData = fields.data;
-                  if (!rawData || rawData === 'undefined') {
-                    throw new Error('Event data is undefined or missing');
-                  }
-                  parsedData = JSON.parse(rawData);
-                } catch (parseError) {
-                  console.error(`[admin-stream] Skipping malformed event ${id}:`, {
-                    error: parseError instanceof Error ? parseError.message : 'Parse failed',
-                    rawData: fields.data,
-                    fullFields: fields
+                // Safely access fields
+                const rawData = fields.data;
+                const eventName = fields.event;
+                const rawTimestamp = fields.timestamp;
+
+                // Validate data exists
+                if (rawData === undefined) {
+                  console.error(`[admin-stream] Skipping entry ${id}: data field is undefined`, {
+                    fields,
+                    eventName,
+                    rawTimestamp
                   });
-                  lastId = id; // Advance past this bad entry
-                  continue; // Skip to next entry instead of crashing stream
+                  lastId = id;
+                  continue;
+                }
+
+                // Parse the JSON data
+                let parsedData: unknown;
+                try {
+                  // Handle case where data is already an object (some Redis clients parse it)
+                  if (typeof rawData === 'object' && rawData !== null) {
+                    parsedData = rawData;
+                  } else {
+                    // Data should be a JSON string
+                    parsedData = JSON.parse(rawData);
+                  }
+                } catch (parseError) {
+                  console.error(`[admin-stream] Skipping malformed data in event ${id}:`, {
+                    error: parseError instanceof Error ? parseError.message : 'Parse failed',
+                    rawData,
+                    event: eventName
+                  });
+                  lastId = id;
+                  continue;
                 }
 
                 // Safely parse timestamp
-                const rawTimestamp = fields.timestamp;
                 const parsedTimestamp = rawTimestamp && !isNaN(Number(rawTimestamp)) 
                   ? parseInt(rawTimestamp) 
                   : Date.now();
@@ -72,7 +111,7 @@ export async function GET(req: NextRequest) {
                 controller.enqueue(`data: ${JSON.stringify({
                   type: 'event',
                   id,
-                  event: fields.event || 'unknown',
+                  event: eventName || 'unknown',
                   data: parsedData,
                   timestamp: parsedTimestamp
                 })}\n\n`);
@@ -81,11 +120,11 @@ export async function GET(req: NextRequest) {
               }
             }
 
-            // Send heartbeat comment to keep connection alive
+            // Send heartbeat to keep connection alive
             controller.enqueue(': heartbeat\n\n');
           } catch (error) {
             console.error('[admin-stream] Redis read error:', error);
-            // Don't crash the entire stream on Redis errors, just log and retry
+            // Don't crash the stream on Redis errors
           }
 
           // Schedule next check if still active
@@ -115,7 +154,6 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     console.error('[admin-stream] Auth error:', error);
-    // Return proper error response for auth failures
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 }
