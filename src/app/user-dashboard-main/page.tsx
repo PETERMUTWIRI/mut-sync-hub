@@ -1,8 +1,4 @@
-// import DashboardClient from './DashboardClient';
 
-// export default function Page() {
-//   return <DashboardClient />;
-// }
 
 'use client';
 
@@ -203,35 +199,7 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen bg-[#0B1020] text-gray-100 font-inter">
       {/* -------------- HEADER -------------- */}
-      <motion.header
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-[#0B1020]/80 backdrop-blur-xl border-b border-white/10"
-      >
-        <div className="flex items-center gap-4">
-          <Input
-            type="text"
-            placeholder="Ask AI or search…"
-            className="w-64 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400"
-          />
-          <Select value={layoutMode} onValueChange={(v) => setLayoutMode(v as any)}>
-            <SelectTrigger className="bg-white/5 border border-white/10 text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="beginner">Beginner</SelectItem>
-              <SelectItem value="power">Power User</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <HiBell className="w-5 h-5 text-gray-400 hover:text-white transition" />
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center font-bold text-sm">
-            {orgProfile?.firstName?.[0] || orgProfile?.email?.[0] || 'U'}
-          </div>
-        </div>
-      </motion.header>
+      
 
       {/* -------------- ENTERPRISE STORY GRID -------------- */}
       <main className="p-6 max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
