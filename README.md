@@ -106,10 +106,4 @@ Key files & locations
 - Contributing: open PRs to `main` with tests and a clear description. Follow existing code style.
 - Issues & support: open issues in this repository for bugs; use the `support` API routes for runtime tickets.
 
-If you want, I can now:
-- generate a separate `CONTRIBUTING.md` and `DEPLOYMENT.md` with runbooks,
-- expand environment variable documentation with exact keys used in the codebase,
-- or open a draft PR with these changes.
 
----
-Updated README to provide an enterprise-grade overview and developer guide.
