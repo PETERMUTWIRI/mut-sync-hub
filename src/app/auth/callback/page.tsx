@@ -1,19 +1,16 @@
 // src/app/auth/callback/page.tsx
 import { redirect } from 'next/navigation';
-import { cookies } from 'next/headers';
 import { stackServerApp } from '@/lib/stack';
 import { prisma } from '@/lib/prisma';
 import { v4 as uuidv4 } from 'uuid';
 import { Prisma } from '@prisma/client';
 import { broadcastToOwner } from '@/lib/admin-broadcast';
 
-// ✅ Explicit type for trial handling
 type TrialInfo = {
   id: string;
   trial_days: number;
 };
 
-// ✅ Fallback helper with error boundary
 async function getDefaultPlanWithTrial(): Promise<TrialInfo> {
   try {
     const plan = await prisma.plan.findFirst({ 
@@ -34,7 +31,6 @@ async function getDefaultPlanWithTrial(): Promise<TrialInfo> {
   }
 }
 
-// ✅ Type guard for profile with organization
 function isProfileComplete(
   profile: any
 ): profile is { 
@@ -44,9 +40,7 @@ function isProfileComplete(
     id: string; 
     planId: string | null; 
     trial_end_date: Date | null;
-    [key: string]: any 
   };
-  [key: string]: any 
 } {
   return profile && 
          typeof profile === 'object' && 
@@ -55,30 +49,17 @@ function isProfileComplete(
 }
 
 export default async function AuthCallback() {
-  const cookieStore = await cookies();
-  
   try {
-    // ✅ Guard: Session token exists
-    const sessionToken = cookieStore.get('stack-session-token')?.value;
-    if (!sessionToken) {
-      console.warn('[auth-callback] No session token');
-      redirect('/sign-in');
-    }
-
-    // ✅ Guard: User authentication
-    const user = await stackServerApp.getUser({ 
-      or: 'throw',
-      tokenStore: 'nextjs-cookie'
-    });
+    // ✅ FIXED: Stack manages session internally - no cookie check needed
+    const user = await stackServerApp.getUser();
     
     if (!user || !user.id) {
-      console.error('[auth-callback] User authentication failed');
-      cookieStore.delete('stack-session-token');
+      console.error('[auth-callback] No authenticated user');
       redirect('/sign-in?error=auth_failed');
     }
 
-    // ✅ Explicit any to bypass strict typing issues
-    let profile: any = await prisma.userProfile.findUnique({
+    // ✅ Immediately fetch or create profile
+    let profile = await prisma.userProfile.findUnique({
       where: { userId: user.id },
       include: { 
         organization: {
@@ -87,11 +68,11 @@ export default async function AuthCallback() {
             planId: true,
             trial_end_date: true
           }
-        } as any // ✅ Type assertion for inclusion
+        }
       },
     });
 
-    // ✅ Guard: Profile creation (with retry logic)
+    // ✅ Profile creation with organization
     if (!profile) {
       try {
         const { id: planId, trial_days } = await getDefaultPlanWithTrial();
@@ -99,21 +80,14 @@ export default async function AuthCallback() {
           ? new Date(Date.now() + trial_days * 24 * 60 * 60 * 1000) 
           : null;
 
-        // ✅ Explicit organization creation
-        const orgData: any = {
-          id: uuidv4(),
-          name: `Org-${user.id.slice(0, 8)}`,
-          subdomain: `org-${user.id.slice(0, 8)}-${Date.now()}`,
-          planId,
-        };
-        
-        // ✅ Conditional field addition (no undefined in data)
-        if (trialEndDate) {
-          orgData.trial_end_date = trialEndDate;
-        }
-
         const org = await prisma.organization.create({
-          data: orgData
+          data: {
+            id: uuidv4(),
+            name: `Org-${user.id.slice(0, 8)}`,
+            subdomain: `org-${user.id.slice(0, 8)}-${Date.now()}`,
+            planId,
+            trial_end_date: trialEndDate,
+          }
         });
 
         const isOwner = user.primaryEmail === process.env.OWNER_EMAIL;
@@ -133,7 +107,7 @@ export default async function AuthCallback() {
             status: 'ACTIVE',
             mfaEnabled: false,
             failedLoginAttempts: 0,
-          } as any, // ✅ Type assertion
+          },
           include: { 
             organization: {
               select: {
@@ -141,64 +115,53 @@ export default async function AuthCallback() {
                 planId: true,
                 trial_end_date: true
               }
-            } as any
+            }
           },
         });
 
-        // ✅ SRE: Safe logging with error boundary
-        try {
-          await broadcastToOwner('org:profile:created', {
-            userId: user.id,
-            orgId: org.id,
-            email: user.primaryEmail,
-            planId,
-            trialEndDate,
-            role: isOwner ? 'SUPER_ADMIN' : 'USER',
-            isOwner
-          });
-        } catch (logError) {
-          console.error('[auth-callback] SRE log failed:', logError);
-        }
+        // ✅ Async logging - non-blocking
+        broadcastToOwner('org:profile:created', {
+          userId: user.id,
+          orgId: org.id,
+          email: user.primaryEmail,
+          planId,
+          trialEndDate,
+          role: profile.role,
+        }).catch(err => console.error('[auth-callback] Log failed:', err));
       } catch (createError) {
         console.error('[auth-callback] Profile creation failed:', createError);
         redirect('/sign-in?error=profile_creation_failed');
       }
     }
 
-    // ✅ Guard: Profile exists after creation attempt
-    if (!profile || !profile.id) {
-      console.error('[auth-callback] Profile is null after creation');
-      redirect('/sign-in?error=profile_null');
+    // ✅ Guard: Verify complete profile
+    if (!isProfileComplete(profile)) {
+      console.error('[auth-callback] Incomplete profile data');
+      redirect('/sign-in?error=invalid_profile');
     }
 
-    // ✅ Guard: Organization exists
-    if (!profile.organization || !profile.organization.id) {
-      console.error('[auth-callback] Organization is null');
-      redirect('/sign-in?error=org_null');
-    }
+    // After guard, profile is guaranteed to be non-null
+    const validProfile = profile;
 
-    // ✅ Type-safe trial expiration check
+    // ✅ Trial expiration handling
     const now = new Date();
-    const org = profile.organization as any;
-    
-    if (!profile.role?.includes('ADMIN') && 
-        org?.trial_end_date && 
-        org.trial_end_date < now) {
+    if (!validProfile.role?.includes('ADMIN') && 
+        validProfile.organization.trial_end_date && 
+        validProfile.organization.trial_end_date < now) {
       
       try {
         const { id: freePlanId } = await getDefaultPlanWithTrial();
         
-        // ✅ Safe update with type assertion
         await prisma.organization.update({
-          where: { id: org.id },
+          where: { id: validProfile.organization.id },
           data: { 
             planId: freePlanId,
-            trial_end_date: null // ✅ Exact field name
-          } as any
+            trial_end_date: null
+          }
         });
         
-        // ✅ Reload profile
-        profile = await prisma.userProfile.findUnique({
+        // ✅ Reload updated profile
+        const reloadedProfile = await prisma.userProfile.findUnique({
           where: { userId: user.id },
           include: { 
             organization: {
@@ -207,27 +170,24 @@ export default async function AuthCallback() {
                 planId: true,
                 trial_end_date: true
               }
-            } as any
+            }
           },
         });
-
-        // ✅ Guard after reload
-        if (!profile || !profile.organization) {
-          throw new Error('Profile reload failed');
+        if (reloadedProfile) {
+          profile = reloadedProfile;
         }
       } catch (trialError) {
         console.error('[auth-callback] Trial handling failed:', trialError);
-        // Continue - not fatal
       }
     }
 
-    // ✅ Owner role upgrade (with guard)
+    // ✅ Owner role upgrade
     if (user.primaryEmail === process.env.OWNER_EMAIL && profile.role !== 'SUPER_ADMIN') {
       try {
-        const oldRole = profile.role;
-        profile = await prisma.userProfile.update({
+        const updatedProfile = await prisma.userProfile.update({
           where: { id: profile.id },
           data: { role: 'SUPER_ADMIN' },
+        
           include: { 
             organization: {
               select: {
@@ -235,37 +195,25 @@ export default async function AuthCallback() {
                 planId: true,
                 trial_end_date: true
               }
-            } as any
+            }
           },
         });
 
-        // ✅ SRE: Safe logging
-        try {
-          await broadcastToOwner('org:profile:role-updated', {
-            userId: user.id,
-            orgId: profile.orgId,
-            email: user.primaryEmail,
-            oldRole,
-            newRole: 'SUPER_ADMIN',
-            reason: 'owner_login'
-          });
-        } catch (logError) {
-          console.error('[auth-callback] SRE log failed:', logError);
-        }
+        profile = updatedProfile;
+
+        broadcastToOwner('org:profile:role-upgraded', {
+          userId: user.id,
+          orgId: profile.orgId,
+          email: user.primaryEmail,
+          newRole: 'SUPER_ADMIN',
+        }).catch(err => console.error('[auth-callback] Log failed:', err));
       } catch (updateError) {
         console.error('[auth-callback] Owner role update failed:', updateError);
-        // Continue - not fatal
       }
     }
 
-    // ✅ Final guard before redirect
-    if (!profile || !profile.role) {
-      console.error('[auth-callback] Profile or role is missing');
-      redirect('/sign-in?error=invalid_profile');
-    }
-
-    // ✅ Role-based redirect
-    const role = (profile.role as string).toLowerCase();
+    // ✅ Intelligent role-based redirect
+    const role = profile.role.toLowerCase();
     if (role === 'super_admin') {
       redirect('/admin-dashboard');
     } else {
@@ -273,10 +221,12 @@ export default async function AuthCallback() {
     }
     
   } catch (error) {
+    // ✅ Distinguish between redirect errors and real errors
+    if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) {
+      throw error; // Let Next.js handle redirects
+    }
+    
     console.error('[auth-callback] Fatal error:', error);
-    try {
-      cookieStore.delete('stack-session-token');
-    } catch {}
     redirect('/sign-in?error=auth_callback_failed');
   }
 }
